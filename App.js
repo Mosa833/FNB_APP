@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, BackHandler } from 'react-native';
+import * as Linking from 'expo-linking';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider, useApp } from './src/store';
@@ -24,8 +25,40 @@ const SCREENS = {
 
 const DARK_SCREENS = ['Splash', 'InterviewSession'];
 
+// Reads the link from the confirmation email. Supabase adds error details after ? or # when the link has expired.
+export function noticeFromLink(url) {
+  if (!url || !url.includes('email-confirmed')) return null;
+  const params = {};
+  const extra = [url.split('?')[1], url.split('#')[1]].filter(Boolean).join('&').split('#')[0];
+  extra.split('&').forEach((pair) => {
+    const [k, v] = pair.split('=');
+    if (k) params[decodeURIComponent(k)] = decodeURIComponent((v || '').replace(/\+/g, ' '));
+  });
+  if (params.error || params.error_code) {
+    return { ok: false, text: params.error_code === 'otp_expired'
+      ? 'That confirmation link has expired or was already used. Try logging in. If it says your email is not confirmed, sign up again to get a new link.'
+      : `We couldn't confirm your email: ${params.error_description || 'please try again'}.` };
+  }
+  return { ok: true, text: 'Your email is confirmed. Log in to start using SkillBridge.' };
+}
+
 function Navigator() {
-  const { current, stack, goBack, TABS } = useApp();
+  const { current, stack, goBack, TABS, reset, mode, setLinkNotice } = useApp();
+  const currentRef = React.useRef(current.name);
+  currentRef.current = current.name;
+
+  // Confirmation email link: open the log in page
+  useEffect(() => {
+    const handle = (url) => {
+      const notice = noticeFromLink(url);
+      if (!notice) return;
+      if (currentRef.current === 'Splash') setLinkNotice(notice); // the splash screen picks it up
+      else if (mode !== 'user') reset('Login', { notice });
+    };
+    Linking.getInitialURL().then(handle).catch(() => {});
+    const sub = Linking.addEventListener('url', ({ url }) => handle(url));
+    return () => sub.remove();
+  }, [mode]);
 
   // Android hardware back button
   useEffect(() => {

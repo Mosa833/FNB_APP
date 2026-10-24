@@ -25,6 +25,9 @@ export function AppProvider({ children }) {
   const [uid, setUid] = useState(null);
   const [data, setData] = useState(emptyBundle());
   const uidRef = useRef(null);
+  const linkNoticeRef = useRef(null);
+  const setLinkNotice = useCallback((n) => { linkNoticeRef.current = n; }, []);
+  const takeLinkNotice = useCallback(() => { const n = linkNoticeRef.current; linkNoticeRef.current = null; return n; }, []);
 
   // ---------- navigation (simple stack) ----------
   const [stack, setStack] = useState([{ name: 'Splash', params: {} }]);
@@ -116,9 +119,9 @@ export function AppProvider({ children }) {
   const value = useMemo(() => ({
     mode, isGuest, uid, data, TABS,
     stack, current: stack[stack.length - 1], navigate, goBack, reset, replace,
-    startUserSession, continueAsGuest, logout, clearSession, reload,
+    startUserSession, continueAsGuest, logout, clearSession, reload, setLinkNotice, takeLinkNotice,
     updateProfile, saveRow, deleteRow,
-  }), [mode, isGuest, uid, data, stack, navigate, goBack, reset, replace, startUserSession, continueAsGuest, logout, clearSession, reload, updateProfile, saveRow, deleteRow]);
+  }), [mode, isGuest, uid, data, stack, navigate, goBack, reset, replace, startUserSession, continueAsGuest, logout, clearSession, reload, setLinkNotice, takeLinkNotice, updateProfile, saveRow, deleteRow]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

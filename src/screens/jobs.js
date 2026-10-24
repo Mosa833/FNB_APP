@@ -94,7 +94,8 @@ export function Jobs() {
       {isGuest && <Note tone="amber">Create a free account to see your chance of getting each job, save jobs and apply.</Note>}
       {!isGuest && res?.demo && res?.live_search === false && <Note tone="amber">Live job search isn't switched on yet, so these are sample jobs.</Note>}
       {!isGuest && res?.demo && res?.live_search && <Note tone="amber">We found only a few live jobs for your profile, so some sample jobs are shown too. Add more skills or job types to find more.</Note>}
-      {!isGuest && res?.pending > 0 && <Note>We're still checking {res.pending} more job{res.pending === 1 ? '' : 's'} against your profile. Tap Refresh in a minute to see them.</Note>}
+      {!isGuest && res?.ai_error && <Note tone="amber">We couldn't work out your chances right now, so these jobs are shown without them. Tap Refresh to try again.</Note>}
+      {!isGuest && res?.pending > 0 && !res?.ai_error && <Note>We're still checking {res.pending} more job{res.pending === 1 ? '' : 's'} against your profile. Tap Refresh in a minute to see them.</Note>}
       <ErrorNote message={error} onRetry={() => load()} />
 
       {res === null || (busy && !res.jobs?.length) ? (

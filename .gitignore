@@ -44,3 +44,5 @@ yarn-error.*
 
 # Contains your CRON_SECRET, made by setup.ps1
 supabase/schedule_jobs_sync.sql
+
+supabase/cron_secret.txt

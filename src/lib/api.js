@@ -1,5 +1,6 @@
 import { File as FSFile } from 'expo-file-system';
 import { supabase } from './supabase';
+import { makeInvoke } from './invoke';
 
 // Turn Supabase errors into plain messages people can act on
 export function friendlyError(err) {
@@ -7,6 +8,7 @@ export function friendlyError(err) {
   if (/Invalid login credentials/i.test(msg)) return 'Your username, email or password is not right.';
   if (/Email not confirmed/i.test(msg)) return 'Please confirm your email first. Check your inbox for the link.';
   if (/User already registered/i.test(msg)) return 'An account with this email already exists. Try logging in.';
+  if (/non-2xx status code/i.test(msg)) return 'Something went wrong on the server. Please try again.';
   if (/Network request failed|Failed to fetch/i.test(msg)) return 'No internet connection. Check your data or Wi-Fi and try again.';
   if (/rate limit/i.test(msg)) return 'Too many tries. Please wait a minute and try again.';
   if (/Token has expired|otp/i.test(msg)) return 'That code is wrong or has expired. Ask for a new one.';
@@ -18,20 +20,8 @@ function check({ data, error }) {
   return data;
 }
 
-// Call an edge function and surface its error message
-export async function invoke(name, body) {
-  const { data, error } = await supabase.functions.invoke(name, { body });
-  if (error) {
-    let message = error.message;
-    try {
-      const j = await error.context.json();
-      if (j?.error) message = j.error;
-    } catch {}
-    throw new Error(message);
-  }
-  if (data?.error) throw new Error(data.error);
-  return data;
-}
+// Call an edge function and show the real reason when it fails (see invoke.js)
+export const invoke = makeInvoke(supabase, { dev: typeof __DEV__ !== 'undefined' && __DEV__ });
 
 export async function currentUserId() {
   const { data } = await supabase.auth.getSession();
@@ -219,7 +209,7 @@ export async function latestJobs() {
   return check(await supabase.from('jobs').select('*').eq('active', true).order('posted_at', { ascending: false, nullsFirst: false }).limit(60));
 }
 
-// ---------- Skills test feedback (Anthropic) ----------
+// ---------- Skills test feedback (Groq) ----------
 export async function testFeedback(attemptId) {
   return (await invoke('test-feedback', { attempt_id: attemptId })).feedback;
 }

@@ -136,6 +136,7 @@ Scoring guide (0 to 100):
 - If the job description is too short to judge, stay between 30 and 60 and say so in the summary.
 Write in plain, simple English. Reply with a JSON array only.`;
 
+  let aiFailed = false;
   const scoreBatch = async (batch: any[]): Promise<Match[]> => {
     const prompt = `The job seeker:\n${JSON.stringify(profileForAI)}\n\nThe jobs:\n` +
       batch.map((j) => JSON.stringify({
@@ -150,6 +151,7 @@ Write in plain, simple English. Reply with a JSON array only.`;
       return (Array.isArray(out) ? out : []).filter((m) => m && ids.has(m.job_id) && Number.isFinite(Number(m.score)));
     } catch (e) {
       console.error("Scoring batch failed", e);
+      aiFailed = true;
       return [];
     }
   };
@@ -176,8 +178,9 @@ Write in plain, simple English. Reply with a JSON array only.`;
   // ---------- 4. Relevant jobs, best chance first ----------
   const list = ranked
     .map((j) => ({ ...j, match: matchByJob.get(j.id) ?? null }))
-    .filter((j) => j.match && j.match.score >= 20)
-    .sort((a, b) => b.match.score - a.match.score || String(b.posted_at).localeCompare(String(a.posted_at)));
+    // If the AI could not score anything, still show the jobs (without chances) instead of an empty list
+    .filter((j) => (j.match ? j.match.score >= 20 : aiFailed && !matchByJob.size))
+    .sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1) || String(b.posted_at).localeCompare(String(a.posted_at)));
 
   return json({
     jobs: list,
@@ -187,5 +190,6 @@ Write in plain, simple English. Reply with a JSON array only.`;
     live_search: liveOn,
     sources: { adzuna: adzunaConfigured(), jsearch: jsearchConfigured() },
     demo: usingDemo,
+    ai_error: aiFailed,
   });
 });

@@ -1,6 +1,6 @@
 // Career coach chat. Keeps the conversation in coach_messages and knows the user's profile and jobs.
 import { serve, json, adminClient, requireUser, HttpError } from "../_shared/common.ts";
-import { chatClaude } from "../_shared/ai.ts";
+import { chatGroq } from "../_shared/ai.ts";
 import { profileSummary } from "../_shared/profile.ts";
 
 const DAILY_LIMIT = 40; // messages per user per day, to keep AI costs under control
@@ -38,7 +38,7 @@ If someone seems in danger or in crisis, tell them to contact SADAG on 0800 567 
 About this user:
 ${summary || "No profile details yet."}`;
 
-  const reply = await chatClaude(system, [...history, { role: "user", content: message }]);
+  const reply = await chatGroq(system, [...history, { role: "user", content: message }]);
   if (!reply) throw new HttpError(502, "The coach did not answer. Please try again.");
 
   await admin.from("coach_messages").insert([

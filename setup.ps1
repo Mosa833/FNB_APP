@@ -30,7 +30,7 @@ if (-not (Test-Path '.\package.json') -or -not (Test-Path '.\supabase\migrations
 
 Write-Host "SkillBridge setup" -ForegroundColor Cyan
 Write-Host "Have these ready: your Supabase project ref, publishable key and database password."
-Write-Host "The Google Maps, Anthropic and Gemini keys are optional now. Press Enter to skip any of them."
+Write-Host "The Google Maps, Groq and Gemini keys are optional now. Press Enter to skip any of them."
 
 # 1. Project details and the app's .env file
 Step "1 of 5: Your Supabase project"
@@ -69,7 +69,8 @@ Done "Tables, security rules, storage and starter data are in place."
 # 4. Server keys (kept in Supabase, never in the app)
 Step "4 of 5: Server keys"
 $google = ReadSecret "Google Maps key (Places API New), or Enter to skip"
-$anthropic = ReadSecret "Anthropic API key, or Enter to skip"
+Write-Host "   The Groq key comes from console.groq.com/keys (it starts with gsk_)."
+$groq = ReadSecret "Groq API key, or Enter to skip"
 $gemini = ReadSecret "Gemini API key (from aistudio.google.com), or Enter to skip"
 Write-Host "   Adzuna keys come from developer.adzuna.com > Dashboard > API access details."
 $adzunaId = (Read-Host "Adzuna app_id, or Enter to skip").Trim()
@@ -80,7 +81,7 @@ $jsearch = ReadSecret "JSearch API key, or Enter to skip"
 
 $secretLines = @()
 if ($google) { $secretLines += "GOOGLE_MAPS_API_KEY=$google" }
-if ($anthropic) { $secretLines += "ANTHROPIC_API_KEY=$anthropic" }
+if ($groq) { $secretLines += "GROQ_API_KEY=$groq" }
 if ($gemini) { $secretLines += "GEMINI_API_KEY=$gemini" }
 if ($adzunaId -and $adzunaKey) { $secretLines += "ADZUNA_APP_ID=$adzunaId"; $secretLines += "ADZUNA_APP_KEY=$adzunaKey" }
 if ($jsearch) { $secretLines += "JSEARCH_API_KEY=$jsearch" }
@@ -136,4 +137,4 @@ Write-Host ""
 Write-Host "Then start the app with:  npx expo start --clear"
 if (-not $google) { Write-Host "Location search will work after you add the Google key." -ForegroundColor Yellow }
 if (-not $adzunaId -and -not $jsearch) { Write-Host "Live job search needs the Adzuna or JSearch keys. Until then the Jobs tab shows sample and company board jobs." -ForegroundColor Yellow }
-if (-not $anthropic -or -not $gemini) { Write-Host "Gemini runs job matching, skills tests, guides and transcription. Anthropic runs the coach and grading." -ForegroundColor Yellow }
+if (-not $groq -or -not $gemini) { Write-Host "Gemini runs job matching, skills tests, guides and transcription. Groq runs the coach, interview questions, grading and test feedback." -ForegroundColor Yellow }

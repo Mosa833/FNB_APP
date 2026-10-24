@@ -65,7 +65,7 @@ function useGoogle() {
 
 // 1. Splash: opens the saved session if there is one
 export function Splash() {
-  const { reset, startUserSession } = useApp();
+  const { reset, startUserSession, takeLinkNotice } = useApp();
   const [dot, setDot] = useState(0);
   useEffect(() => {
     const d = setInterval(() => setDot((x) => (x + 1) % 3), 450);
@@ -83,7 +83,10 @@ export function Splash() {
         }
       }
       await wait;
-      if (!cancelled) reset(next);
+      if (cancelled) return;
+      const notice = takeLinkNotice();
+      if (notice && next !== 'Home') reset('Login', { notice });
+      else reset(next);
     })();
     return () => { cancelled = true; clearInterval(d); };
   }, []);
@@ -200,6 +203,8 @@ export function Register() {
         email: f.email.trim(),
         password: f.password,
         options: {
+          // The confirmation link opens the app on the login screen (see handleIncomingLink in App.js)
+          emailRedirectTo: Linking.createURL('email-confirmed'),
           data: { full_name: f.name.trim(), username: f.username.trim(), phone, location: place.location.trim(), place_id: place.place_id },
         },
       });
@@ -219,8 +224,9 @@ export function Register() {
       <Screen>
         <BackHeader />
         <Text style={text.h1}>Check your email</Text>
-        <Text style={text.muted}>We sent a link to {f.email.trim()}. Tap it to confirm your account, then come back and log in.</Text>
-        <Button title="Go to log in" onPress={() => replace('Login')} style={{ marginTop: 20 }} />
+        <Text style={text.muted}>We sent a link to {f.email.trim()}. Open the email on this phone and tap the link. SkillBridge will open on the log in page.</Text>
+        <Note style={{ marginTop: 14 }}>Opened the email on a computer instead? Your account is still confirmed. Come back to the app and log in.</Note>
+        <Button title="Go to log in" onPress={() => replace('Login')} style={{ marginTop: 10 }} />
       </Screen>
     );
   }
@@ -256,7 +262,8 @@ export function Register() {
 
 // 4. Login
 export function Login() {
-  const { navigate, startUserSession, continueAsGuest, reset, replace } = useApp();
+  const { navigate, startUserSession, continueAsGuest, reset, replace, current } = useApp();
+  const notice = current.params?.notice;
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -285,6 +292,7 @@ export function Login() {
       <BackHeader />
       <Text style={text.h1}>Welcome back</Text>
       <Text style={[text.muted, { marginBottom: 18 }]}>Log in to see your matches and progress.</Text>
+      {notice ? <Note tone={notice.ok ? 'teal' : 'amber'}>{notice.text}</Note> : null}
       <Field label="Username or email" value={identifier} onChangeText={setIdentifier} placeholder="thabo_m" />
       <Field label="Password" value={password} onChangeText={setPassword} placeholder="Your password" secure />
       <ErrorNote message={error} />

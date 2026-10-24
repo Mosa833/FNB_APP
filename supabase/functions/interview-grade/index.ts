@@ -1,6 +1,6 @@
 // Turns each recorded answer into text, then grades the whole session with feedback and better wording.
 import { serve, json, adminClient, requireUser, HttpError } from "../_shared/common.ts";
-import { askClaude, parseJSON, transcribe } from "../_shared/ai.ts";
+import { askGroq, parseJSON, transcribe } from "../_shared/ai.ts";
 
 type AnswerIn = { position: number; audio_path: string; duration_seconds: number };
 type Graded = {
@@ -62,7 +62,7 @@ serve(async (req) => {
       `Then give overall_score (0 to 100) and summary (two or three sentences ending with the single most useful tip).\n` +
       `Reply as {"overall_score":0,"summary":"","answers":[{"position":1,"score":0,"went_well":"","improve":"","better_answer":""}]}`;
 
-    const graded = parseJSON<Graded>(await askClaude(system, prompt, 4000));
+    const graded = parseJSON<Graded>(await askGroq(system, prompt, 4000));
     const clamp = (n: unknown) => Math.max(0, Math.min(100, Math.round(Number(n) || 0)));
 
     const rows = items.map((it) => {

@@ -1,6 +1,6 @@
 // Starts an interview practice session: checks the monthly limit and writes questions for the job type.
 import { serve, json, adminClient, requireUser, HttpError } from "../_shared/common.ts";
-import { askClaude, parseJSON } from "../_shared/ai.ts";
+import { askGroq, parseJSON } from "../_shared/ai.ts";
 
 const MONTHLY_LIMIT = 3;
 const TYPES = ["General", "Skills", "Problem solving"];
@@ -63,7 +63,7 @@ serve(async (req) => {
       `Use short, plain sentences a first-time job seeker understands. Make them specific to the job.\n` +
       `If "${jobType}" is not a real job, write general entry-level questions instead.\n` +
       `Reply as {"questions":["...","...","...","...","..."]}`;
-    const out = parseJSON<{ questions: string[] }>(await askClaude(system, prompt, 800));
+    const out = parseJSON<{ questions: string[] }>(await askGroq(system, prompt, 800));
     questions = (out.questions ?? []).map(String).filter((q) => q.length > 5).slice(0, 5);
   } catch (err) {
     console.error("Using fallback questions", err);

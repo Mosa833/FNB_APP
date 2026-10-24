@@ -186,7 +186,7 @@ export function TestResult() {
   const [feedback, setFeedback] = useState(null);
   const [fbState, setFbState] = useState(result.attempt_id && !isGuest ? 'loading' : 'none');
 
-  // Written feedback from Anthropic Claude. The score above is marked exactly, not by AI.
+  // Written feedback from Groq. The score above is marked exactly, not by AI.
   const loadFeedback = () => {
     setFbState('loading');
     api.testFeedback(result.attempt_id).then((f) => { setFeedback(f); setFbState('done'); }).catch(() => setFbState('error'));

@@ -1,6 +1,6 @@
-// Written feedback on a skills test, by Anthropic Claude. The score itself is marked exactly by the database.
+// Written feedback on a skills test, by Groq. The score itself is marked exactly by the database.
 import { serve, json, adminClient, requireUser, HttpError } from "../_shared/common.ts";
-import { askClaude, parseJSON } from "../_shared/ai.ts";
+import { askGroq, parseJSON } from "../_shared/ai.ts";
 
 type Feedback = { summary: string; questions: { question: string; why: string }[]; tips: string[] };
 
@@ -33,7 +33,7 @@ Reply in this JSON shape:
  "questions": [{"question": "the question text, for each WRONG answer only", "why": "1 or 2 sentences explaining why the correct answer is right, with a simple work example"}],
  "tips": ["2 or 3 short, practical things to practise next"]}`;
 
-  const fb = parseJSON<Feedback>(await askClaude(system, prompt, 1500));
+  const fb = parseJSON<Feedback>(await askGroq(system, prompt, 1500));
   const clean = {
     summary: String(fb.summary ?? "").slice(0, 600),
     questions: (fb.questions ?? []).slice(0, 15).map((q) => ({ question: String(q.question).slice(0, 300), why: String(q.why).slice(0, 600) })),
