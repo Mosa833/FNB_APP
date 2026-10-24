@@ -203,3 +203,27 @@ export async function myGuides() {
 export async function makeGuide({ topic, jobId }) {
   return (await invoke('career-guide', { topic, job_id: jobId })).guide;
 }
+
+// ---------- Live jobs and AI match scores ----------
+// Searches Adzuna for this person, adds company board jobs and returns them with Gemini's match score
+export async function myJobs({ refresh = false } = {}) {
+  return invoke('jobs-for-me', { refresh });
+}
+// Already-scored jobs, fast, no AI call (used on Home)
+export async function cachedMatches(limit = 3) {
+  const rows = check(await supabase.from('job_matches').select('score, chance, summary, reasons, missing, jobs(*)').order('score', { ascending: false }).limit(20));
+  return rows.filter((r) => r.jobs?.active).slice(0, limit).map((r) => ({ ...r.jobs, match: { score: r.score, chance: r.chance, summary: r.summary, reasons: r.reasons, missing: r.missing } }));
+}
+// Jobs for guests (no scores)
+export async function latestJobs() {
+  return check(await supabase.from('jobs').select('*').eq('active', true).order('posted_at', { ascending: false, nullsFirst: false }).limit(60));
+}
+
+// ---------- Skills test feedback (Anthropic) ----------
+export async function testFeedback(attemptId) {
+  return (await invoke('test-feedback', { attempt_id: attemptId })).feedback;
+}
+export async function jobsByIds(ids) {
+  if (!ids.length) return [];
+  return check(await supabase.from('jobs').select('*').in('id', ids));
+}

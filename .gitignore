@@ -39,8 +39,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
-<<<<<<< HEAD
 
 .env
-=======
->>>>>>> origin/main
+
+# Contains your CRON_SECRET, made by setup.ps1
+supabase/schedule_jobs_sync.sql

@@ -1,125 +1,140 @@
-<<<<<<< HEAD
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../theme';
+import * as WebBrowser from 'expo-web-browser';
+import { colors, radius } from '../theme';
 import { useApp } from '../store';
 import * as api from '../lib/api';
-import { rankJobs, hasNeed, matchScore } from '../lib/match';
 import { Screen, BackHeader, Button, Card, Chip, Note, ErrorNote, Loading, text } from '../ui';
 
-const FILTERS = ['All', 'Near me', 'Part-time', 'Internships', 'Saved'];
+const FILTERS = ['All', 'Near me', 'Part-time', 'Internships', 'Remote', 'Saved'];
+const SOURCE = { adzuna: 'via Adzuna', greenhouse: 'Company careers site', smartrecruiters: 'Company careers site', demo: 'Sample job' };
+// Where the job post comes from. JSearch jobs name the site the link opens.
+export const sourceLabel = (j) => (j.source === 'jsearch' ? (j.publisher ? `via ${j.publisher}` : 'via Google for Jobs') : SOURCE[j.source]);
 
-// 13. Opportunity mapping
+export function postedAgo(iso) {
+  if (!iso) return null;
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 864e5);
+  if (days <= 0) return 'Posted today';
+  if (days === 1) return 'Posted yesterday';
+  if (days < 30) return `Posted ${days} days ago`;
+  return `Posted ${Math.floor(days / 30)} month${days >= 60 ? 's' : ''} ago`;
+}
+
+export function ChanceChip({ match, small }) {
+  if (!match) return null;
+  const tone = match.chance === 'High' ? 'verified' : match.chance === 'Medium' ? 'amber' : 'red';
+  return <Chip small={small} label={`${match.chance} chance · ${match.score}%`} tone={tone} />;
+}
+
+const nearMe = (j, location) => {
+  const words = String(location || '').toLowerCase().split(/[^a-z]+/).filter((w) => w.length > 3 && w !== 'south' && w !== 'africa');
+  return words.some((w) => `${j.area} ${j.full_area || ''}`.toLowerCase().includes(w));
+};
+
+// 13. Opportunities: live jobs, ranked by the user's chance of getting them
 export function Jobs() {
   const { navigate, data, isGuest } = useApp();
-  const [jobs, setJobs] = useState(null);
+  const [res, setRes] = useState(null);
   const [saved, setSaved] = useState([]);
   const [filter, setFilter] = useState('All');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const load = async () => {
+  const load = async (refresh = false) => {
     try {
-      setError('');
-      const list = await api.fetchJobs();
-      setJobs(rankJobs(list, data));
-      if (!isGuest) setSaved((await api.fetchSavedAndApplied()).saved);
+      setError(''); setBusy(true);
+      if (isGuest) {
+        const jobs = await api.latestJobs();
+        const real = jobs.filter((j) => j.source !== 'demo');
+        setRes({ jobs: real.length >= 5 ? real : jobs });
+      } else {
+        const [r, s] = await Promise.all([api.myJobs({ refresh }), api.fetchSavedAndApplied()]);
+        setRes(r);
+        setSaved(s.saved);
+      }
     } catch (e) {
-      setJobs([]);
+      setRes((r) => r || { jobs: [] });
       setError(api.friendlyError(e));
+    } finally {
+      setBusy(false);
     }
   };
-  useEffect(() => { load(); }, [data]);
+  useEffect(() => { load(); }, []);
 
-  const list = (jobs || []).filter((j) => filter === 'All' || (filter === 'Saved' ? saved.includes(j.id) : (j.filters || []).includes(filter)));
+  const jobs = (res?.jobs || []).filter((j) => {
+    if (filter === 'All') return true;
+    if (filter === 'Saved') return saved.includes(j.id);
+    if (filter === 'Near me') return nearMe(j, data.profile.location);
+    if (filter === 'Part-time') return /part/i.test(j.job_type);
+    if (filter === 'Internships') return /intern|learnership|graduate|trainee/i.test(`${j.title} ${j.job_type}`);
+    if (filter === 'Remote') return j.remote;
+    return true;
+  });
+  const hasAdzuna = (res?.jobs || []).some((j) => j.source === 'adzuna');
 
   return (
     <Screen>
-      <Text style={text.h1}>Opportunities</Text>
-      <Text style={[text.muted, { marginBottom: 12 }]}>Ranked by how well your skills match.</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <Text style={[text.h1, { flex: 1 }]}>Opportunities</Text>
+        {!isGuest && (
+          <Pressable onPress={() => load(true)} disabled={busy} hitSlop={10} style={{ flexDirection: 'row', alignItems: 'center', opacity: busy ? 0.4 : 1 }} accessibilityLabel="Find new jobs">
+            <Ionicons name="refresh" size={18} color={colors.teal} />
+            <Text style={[text.link, { marginLeft: 4 }]}>Refresh</Text>
+          </Pressable>
+        )}
+      </View>
+      <Text style={[text.muted, { marginBottom: 12 }]}>
+        {isGuest ? 'Latest jobs in South Africa.' : 'Real jobs picked for your profile, best chance first.'}
+      </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-        {FILTERS.filter((f) => !(isGuest && f === 'Saved')).map((f) => <Chip key={f} label={f} active={filter === f} onPress={() => setFilter(f)} />)}
+        {FILTERS.filter((f) => !(isGuest && (f === 'Saved' || f === 'Near me'))).map((f) => <Chip key={f} label={f} active={filter === f} onPress={() => setFilter(f)} />)}
       </ScrollView>
-      {isGuest && <Note tone="amber">Guests can view jobs. Create an account to save and apply.</Note>}
-      <ErrorNote message={error} onRetry={load} />
-      {jobs === null ? <Loading /> : list.map((j) => {
-        const why = (j.needs || []).filter((n) => hasNeed(data, n)?.verified && n !== 'Matric');
-        return (
-          <Card key={j.id} onPress={() => navigate('JobDetail', { job: j })}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-              <Text style={[text.h3, { flex: 1, marginRight: 8 }]}>{j.title}</Text>
-              {saved.includes(j.id) && <Ionicons name="heart" size={16} color={colors.amber} style={{ marginRight: 6, marginTop: 2 }} />}
-              <Chip small label={`${j.match}% match`} tone={j.match >= 70 ? 'verified' : 'amber'} />
-            </View>
-            <Text style={text.small}>{j.company} · {j.area}</Text>
-            <Text style={[text.body, { marginTop: 6, fontSize: 14 }]}>{[j.pay, j.distance_text !== 'Remote' ? j.distance_text : null, j.travel_note].filter(Boolean).join(' · ')}</Text>
-            {why.length > 0 && <Text style={[text.small, { marginTop: 6, color: colors.tealDark }]}>Why you match: {why.map((w) => `${w} ✓`).join(', ')}</Text>}
-            {j.job_type !== 'Full-time' && <View style={{ marginTop: 8 }}><Chip small label={j.job_type} tone="amber" /></View>}
-          </Card>
-        );
-      })}
-      {jobs !== null && list.length === 0 && !error && <Text style={text.muted}>{filter === 'Saved' ? 'You have not saved any jobs yet.' : 'No jobs for this filter yet. Try All.'}</Text>}
-      <Text style={[text.small, { marginTop: 10 }]}>Distances and travel costs are estimates from Soweto for now.</Text>
-=======
-import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, radius } from '../theme';
-import { useApp } from '../store';
-import { JOBS } from '../data';
-import { Screen, BackHeader, Button, Card, Chip, Note, text } from '../ui';
 
-const FILTERS = ['All', 'Near me', 'Part-time', 'Internships'];
+      {isGuest && <Note tone="amber">Create a free account to see your chance of getting each job, save jobs and apply.</Note>}
+      {!isGuest && res?.demo && res?.live_search === false && <Note tone="amber">Live job search isn't switched on yet, so these are sample jobs.</Note>}
+      {!isGuest && res?.demo && res?.live_search && <Note tone="amber">We found only a few live jobs for your profile, so some sample jobs are shown too. Add more skills or job types to find more.</Note>}
+      {!isGuest && res?.pending > 0 && <Note>We're still checking {res.pending} more job{res.pending === 1 ? '' : 's'} against your profile. Tap Refresh in a minute to see them.</Note>}
+      <ErrorNote message={error} onRetry={() => load()} />
 
-function hasSkill(profile, need) {
-  if (need === 'Matric') return profile.education.some((e) => e.title.toLowerCase().includes('matric'));
-  return profile.skills.find((s) => s.name.toLowerCase() === need.toLowerCase());
-}
-
-// 13. Opportunity mapping
-export function Jobs() {
-  const { navigate, profile, savedJobs, isGuest } = useApp();
-  const [filter, setFilter] = useState('All');
-  const list = JOBS.filter((j) => filter === 'All' || j.filters.includes(filter)).sort((a, b) => b.match - a.match);
-  return (
-    <Screen>
-      <Text style={text.h1}>Opportunities</Text>
-      <Text style={[text.muted, { marginBottom: 12 }]}>Matched to your skills and location.</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
-        {FILTERS.map((f) => <Chip key={f} label={f} active={filter === f} onPress={() => setFilter(f)} />)}
-      </ScrollView>
-      {isGuest && <Note tone="amber">Guests can view jobs. Create an account to save and apply.</Note>}
-      {list.map((j) => {
-        const why = j.needs.filter((n) => { const s = hasSkill(profile, n); return s && s.verified; });
-        return (
-          <Card key={j.id} onPress={() => navigate('JobDetail', { id: j.id })}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-              <Text style={[text.h3, { flex: 1, marginRight: 8 }]}>{j.title}</Text>
-              {savedJobs.includes(j.id) && <Ionicons name="heart" size={16} color={colors.amber} style={{ marginRight: 6, marginTop: 2 }} />}
-              <Chip small label={`${j.match}% match`} tone="verified" />
-            </View>
-            <Text style={text.small}>{j.company} · {j.area}</Text>
-            <Text style={[text.body, { marginTop: 6, fontSize: 14 }]}>{j.pay} · {j.distance === 'Remote' ? '' : `${j.distance} · `}{j.travel}</Text>
-            {why.length > 0 && <Text style={[text.small, { marginTop: 6, color: colors.tealDark }]}>Why you match: {why.map((w) => `${w} ✓`).join(', ')}</Text>}
-            {j.type !== 'Full-time' && <View style={{ marginTop: 8 }}><Chip small label={j.type} tone="amber" /></View>}
-          </Card>
-        );
-      })}
-      {list.length === 0 && <Text style={text.muted}>No jobs for this filter yet. Try All.</Text>}
->>>>>>> origin/main
+      {res === null || (busy && !res.jobs?.length) ? (
+        <Loading label={isGuest ? 'Loading jobs...' : 'Finding jobs that fit your profile...'} />
+      ) : jobs.map((j) => (
+        <Card key={j.id} onPress={() => navigate('JobDetail', { job: j })}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+            <Text style={[text.h3, { flex: 1, marginRight: 8 }]}>{j.title}</Text>
+            {saved.includes(j.id) && <Ionicons name="heart" size={16} color={colors.amber} style={{ marginRight: 6, marginTop: 2 }} />}
+          </View>
+          <Text style={text.small}>{j.company} · {j.area}{j.remote ? ' · Remote' : ''}</Text>
+          {j.match ? <View style={{ marginTop: 8 }}><ChanceChip match={j.match} small /></View> : null}
+          {j.match?.summary ? <Text style={[text.body, { marginTop: 6, fontSize: 14 }]}>{j.match.summary}</Text> : null}
+          <Text style={[text.small, { marginTop: 6 }]}>{[j.pay, j.job_type !== 'Full-time' ? j.job_type : null, postedAgo(j.posted_at), sourceLabel(j)].filter(Boolean).join(' · ')}</Text>
+        </Card>
+      ))}
+      {res !== null && !busy && jobs.length === 0 && !error && (
+        <Card>
+          <Text style={text.h3}>{filter === 'Saved' ? 'No saved jobs yet' : 'No matching jobs right now'}</Text>
+          <Text style={[text.muted, { marginTop: 4 }]}>
+            {filter === 'Saved' ? 'Tap the heart on a job to save it.' : 'Add more skills and the work you are looking for to your profile, then tap Refresh.'}
+          </Text>
+          {filter !== 'Saved' && !isGuest ? <Button title="Update my profile" variant="outline" onPress={() => navigate('Profile')} style={{ marginTop: 10 }} /> : null}
+        </Card>
+      )}
+      {hasAdzuna ? <Text style={[text.small, { textAlign: 'center', marginTop: 10 }]}>Jobs by Adzuna</Text> : null}
+      {!isGuest && res?.jobs?.length ? <Text style={[text.small, { textAlign: 'center', marginTop: 4 }]}>Chances are an AI estimate from your profile and the job post. Use them as a guide.</Text> : null}
     </Screen>
   );
 }
 
 // 14. Job details
 export function JobDetail() {
-<<<<<<< HEAD
-  const { current, data, isGuest, navigate } = useApp();
+  const { current, isGuest, navigate } = useApp();
   const j = current.params.job;
-  const match = matchScore(j, data);
+  const m = j.match;
   const [saved, setSaved] = useState(false);
   const [applied, setApplied] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     if (isGuest) return;
@@ -137,37 +152,39 @@ export function JobDetail() {
     if (isGuest) return navigate('Locked', { feature: 'Applying for jobs' });
     try {
       setBusy(true);
-      await api.applyToJob(j.id);
-      setApplied(true);
-      Alert.alert('Application sent', `Your profile was sent to ${j.company}. We'll let you know when they reply.`);
+      if (j.url) {
+        // Live jobs are applied for on the employer's site
+        await WebBrowser.openBrowserAsync(j.url);
+        if (!applied) {
+          await api.applyToJob(j.id);
+          setApplied(true);
+        }
+      } else {
+        await api.applyToJob(j.id);
+        setApplied(true);
+        Alert.alert('Application sent', `Your profile was sent to ${j.company}.`);
+      }
     } catch (e) {
-      Alert.alert('Could not apply', api.friendlyError(e));
+      Alert.alert('Could not open the job', api.friendlyError(e));
     } finally {
       setBusy(false);
     }
-=======
-  const { current, profile, savedJobs, appliedJobs, toggleSave, apply, isGuest, navigate } = useApp();
-  const j = JOBS.find((x) => x.id === current.params.id);
-  const saved = savedJobs.includes(j.id);
-  const applied = appliedJobs.includes(j.id);
-
-  const onSave = () => (isGuest ? navigate('Locked', { feature: 'Saving jobs' }) : toggleSave(j.id));
-  const onApply = () => {
-    if (isGuest) return navigate('Locked', { feature: 'Applying for jobs' });
-    apply(j.id);
-    Alert.alert('Application sent', `Your profile was sent to ${j.company}. We'll let you know when they reply.`);
->>>>>>> origin/main
   };
+
+  const desc = j.description || '';
+  const longDesc = desc.length > 700;
 
   return (
     <Screen
       footer={
         <View style={st.footer}>
-<<<<<<< HEAD
-          <Button title={applied ? 'Applied ✓' : 'Apply with my profile'} onPress={onApply} disabled={applied} loading={busy} />
-=======
-          <Button title={applied ? 'Applied ✓' : 'Apply with my profile'} onPress={onApply} disabled={applied} />
->>>>>>> origin/main
+          <Button
+            title={j.url ? (applied ? 'Open the job post again' : j.apply_direct ? 'Apply on the company site' : 'Apply on the job site') : applied ? 'Applied ✓' : 'Apply with my profile'}
+            onPress={onApply}
+            disabled={!j.url && applied}
+            loading={busy}
+          />
+          {j.url && applied ? <Text style={[text.small, { textAlign: 'center' }]}>Saved to your applications</Text> : null}
         </View>
       }
     >
@@ -180,68 +197,59 @@ export function JobDetail() {
         }
       />
       <Text style={text.h1}>{j.title}</Text>
-<<<<<<< HEAD
       <Text style={text.muted}>{j.company} · {j.full_area || j.area}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 }}>
-        {[j.pay, j.job_type, j.level].filter(Boolean).map((t) => <Chip key={t} label={t} />)}
+        {[j.pay, j.job_type, j.level !== 'Not stated' ? j.level : null, j.remote ? 'Remote' : null].filter(Boolean).map((t) => <Chip key={t} label={t} />)}
       </View>
-      {j.description ? <Text style={[text.body, { marginVertical: 8 }]}>{j.description}</Text> : null}
-=======
-      <Text style={text.muted}>{j.company} · {j.fullArea}</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 12 }}>
-        {[j.pay, j.type, j.level].map((t) => <Chip key={t} label={t} />)}
-      </View>
->>>>>>> origin/main
+      <Text style={text.small}>{[postedAgo(j.posted_at), sourceLabel(j)].filter(Boolean).join(' · ')}</Text>
 
-      <Card style={{ marginTop: 10 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
-          <Text style={text.h3}>Your match</Text>
-<<<<<<< HEAD
-          <Text style={{ color: colors.teal, fontWeight: '800', fontSize: 18 }}>{match}%</Text>
-        </View>
-        {(j.needs || []).map((n) => {
-          const s = hasNeed(data, n);
-          const label = s && s.verified && n !== 'Matric' ? `${n} (verified)` : s && n !== 'Matric' ? `${n} (not tested yet)` : n;
-=======
-          <Text style={{ color: colors.teal, fontWeight: '800', fontSize: 18 }}>{j.match}%</Text>
-        </View>
-        {j.needs.map((n) => {
-          const s = hasSkill(profile, n);
-          const label = s && s.verified ? `${n} (verified)` : n;
->>>>>>> origin/main
-          return (
-            <View key={n} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
-              <Ionicons name={s ? 'checkmark' : 'close'} size={18} color={s ? colors.teal : colors.red} />
-              <Text style={[text.body, { marginLeft: 8 }]}>{label}</Text>
+      {m ? (
+        <Card style={{ marginTop: 14 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            <View style={[st.ring, { borderColor: m.chance === 'High' ? colors.teal : m.chance === 'Medium' ? colors.amber : colors.red }]}>
+              <Text style={{ fontWeight: '800', fontSize: 18, color: colors.text }}>{m.score}%</Text>
             </View>
-          );
-        })}
-<<<<<<< HEAD
-        {j.gap_course ? (
-          <Pressable onPress={() => navigate('Course', { topic: j.gap_course })} hitSlop={6}>
-            <Text style={[text.link, { marginTop: 6 }]}>Close the gap: free 1 hour course</Text>
-          </Pressable>
-        ) : null}
-=======
-        <Pressable onPress={() => navigate('Course', { topic: j.gapCourse })} hitSlop={6}>
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <Text style={text.h3}>{m.chance} chance</Text>
+              {m.summary ? <Text style={text.muted}>{m.summary}</Text> : null}
+            </View>
+          </View>
+          {(m.reasons || []).map((r) => (
+            <View key={r} style={st.row}><Ionicons name="checkmark" size={18} color={colors.teal} /><Text style={[text.body, { marginLeft: 8, flex: 1 }]}>{r}</Text></View>
+          ))}
+          {(m.missing || []).map((r) => (
+            <View key={r} style={st.row}><Ionicons name="close" size={18} color={colors.red} /><Text style={[text.body, { marginLeft: 8, flex: 1 }]}>{r}</Text></View>
+          ))}
+          {!isGuest ? (
+            <Pressable onPress={() => navigate('Guide', { jobId: j.id, jobTitle: j.title })} hitSlop={6}>
+              <Text style={[text.link, { marginTop: 8 }]}>Get a guide to improve my chances</Text>
+            </Pressable>
+          ) : null}
+        </Card>
+      ) : isGuest ? (
+        <Note tone="amber" style={{ marginTop: 14 }}>Create a free account to see your chance of getting this job.</Note>
+      ) : null}
+
+      {desc ? (
+        <Card>
+          <Text style={text.h3}>About the job</Text>
+          <Text style={[text.body, { marginTop: 6 }]}>{showAll || !longDesc ? desc : `${desc.slice(0, 700)}...`}</Text>
+          {longDesc ? <Pressable onPress={() => setShowAll(!showAll)} hitSlop={6}><Text style={[text.link, { marginTop: 6 }]}>{showAll ? 'Show less' : 'Read more'}</Text></Pressable> : null}
+          {j.source === 'adzuna' ? <Text style={[text.small, { marginTop: 8 }]}>This is a short version. The full post is on the employer's site.</Text> : null}
+        </Card>
+      ) : null}
+
+      {j.gap_course ? (
+        <Pressable onPress={() => navigate('Course', { topic: j.gap_course })} hitSlop={6}>
           <Text style={[text.link, { marginTop: 6 }]}>Close the gap: free 1 hour course</Text>
         </Pressable>
->>>>>>> origin/main
-      </Card>
-
-      <Card>
-        <Text style={text.h3}>Getting there</Text>
-<<<<<<< HEAD
-        <Text style={[text.muted, { marginTop: 4 }]}>{[j.distance_text, j.travel_note].filter(Boolean).join(' · ')}</Text>
-=======
-        <Text style={[text.muted, { marginTop: 4 }]}>{j.travelLong}</Text>
->>>>>>> origin/main
-      </Card>
+      ) : null}
+      {j.source === 'adzuna' ? <Text style={[text.small, { marginTop: 10 }]}>Jobs by Adzuna</Text> : null}
     </Screen>
   );
 }
 
-// Short course placeholder used by "close the gap" links
+// Short course placeholder used by "close the gap" links on sample jobs
 export function Course() {
   const { current } = useApp();
   const topic = current.params.topic;
@@ -264,4 +272,6 @@ export function Course() {
 const st = StyleSheet.create({
   footer: { paddingHorizontal: 20, paddingVertical: 8, backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border },
   lessonNo: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.tealLight, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
+  ring: { width: 72, height: 72, borderRadius: 36, borderWidth: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
+  row: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 6 },
 });

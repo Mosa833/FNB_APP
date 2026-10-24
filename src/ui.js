@@ -1,9 +1,5 @@
 import React, { useState } from 'react';
-<<<<<<< HEAD
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Image, ActivityIndicator } from 'react-native';
-=======
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
->>>>>>> origin/main
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius } from './theme';
@@ -14,11 +10,7 @@ export function Screen({ children, scroll = true, padded = true, bg = colors.bg,
   const { current, TABS } = useApp();
   const hasTabs = TABS.includes(current.name);
   const content = (
-<<<<<<< HEAD
     <View style={[!scroll && { flex: 1 }, padded && { paddingHorizontal: 20 }, { paddingTop: 12, paddingBottom: 24 }, style]}>{children}</View>
-=======
-    <View style={[padded && { paddingHorizontal: 20 }, { paddingTop: 12, paddingBottom: 24 }, style]}>{children}</View>
->>>>>>> origin/main
   );
   return (
     <KeyboardAvoidingView
@@ -28,11 +20,7 @@ export function Screen({ children, scroll = true, padded = true, bg = colors.bg,
       {scroll ? (
         <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ flexGrow: 1 }}>{content}</ScrollView>
       ) : (
-<<<<<<< HEAD
         content
-=======
-        <View style={{ flex: 1 }}>{content}</View>
->>>>>>> origin/main
       )}
       {footer}
       {!hasTabs && <View style={{ height: insets.bottom }} />}
@@ -54,11 +42,7 @@ export function BackHeader({ title, right }) {
   );
 }
 
-<<<<<<< HEAD
 export function Button({ title, onPress, variant = 'primary', icon, disabled, style, loading }) {
-=======
-export function Button({ title, onPress, variant = 'primary', icon, disabled, style }) {
->>>>>>> origin/main
   const v = {
     primary: { bg: colors.teal, fg: colors.white, border: colors.teal },
     outline: { bg: colors.white, fg: colors.teal, border: colors.teal },
@@ -69,11 +53,7 @@ export function Button({ title, onPress, variant = 'primary', icon, disabled, st
   return (
     <Pressable
       onPress={onPress}
-<<<<<<< HEAD
       disabled={disabled || loading}
-=======
-      disabled={disabled}
->>>>>>> origin/main
       style={({ pressed }) => [
         s.btn,
         { backgroundColor: v.bg, borderColor: v.border, opacity: disabled ? 0.5 : pressed ? 0.85 : 1 },
@@ -81,11 +61,7 @@ export function Button({ title, onPress, variant = 'primary', icon, disabled, st
         style,
       ]}
     >
-<<<<<<< HEAD
       {loading ? <ActivityIndicator color={v.fg} style={{ marginRight: 8 }} /> : icon}
-=======
-      {icon}
->>>>>>> origin/main
       <Text style={[s.btnText, { color: v.fg }]}>{title}</Text>
     </Pressable>
   );
@@ -102,24 +78,14 @@ export function GoogleButton({ title, onPress }) {
   );
 }
 
-<<<<<<< HEAD
 export function Field({ label, value, onChangeText, placeholder, secure, keyboardType, autoCapitalize = 'none', error, multiline, maxLength, hint }) {
-=======
-export function Field({ label, value, onChangeText, placeholder, secure, keyboardType, autoCapitalize = 'none', error }) {
->>>>>>> origin/main
   const [show, setShow] = useState(false);
   return (
     <View style={{ marginBottom: 14 }}>
       {label ? <Text style={s.label}>{label}</Text> : null}
-<<<<<<< HEAD
       <View style={[s.input, multiline && { minHeight: 100, alignItems: 'flex-start', paddingVertical: 12 }, error && { borderColor: colors.red }]}>
         <TextInput
           style={{ flex: 1, fontSize: 15, color: colors.text, paddingVertical: 0, minHeight: multiline ? 76 : undefined }}
-=======
-      <View style={[s.input, error && { borderColor: colors.red }]}>
-        <TextInput
-          style={{ flex: 1, fontSize: 15, color: colors.text, paddingVertical: 0 }}
->>>>>>> origin/main
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -128,12 +94,9 @@ export function Field({ label, value, onChangeText, placeholder, secure, keyboar
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize}
           autoCorrect={false}
-<<<<<<< HEAD
           multiline={multiline}
           maxLength={maxLength}
           textAlignVertical={multiline ? 'top' : 'center'}
-=======
->>>>>>> origin/main
         />
         {secure ? (
           <Pressable onPress={() => setShow(!show)} hitSlop={10}>
@@ -141,11 +104,7 @@ export function Field({ label, value, onChangeText, placeholder, secure, keyboar
           </Pressable>
         ) : null}
       </View>
-<<<<<<< HEAD
       {error ? <Text style={s.error}>{error}</Text> : hint ? <Text style={s.hint}>{hint}</Text> : null}
-=======
-      {error ? <Text style={s.error}>{error}</Text> : null}
->>>>>>> origin/main
     </View>
   );
 }
@@ -161,21 +120,13 @@ export function Select({ label, value, options, onChange, placeholder }) {
         <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color={colors.muted} />
       </Pressable>
       {open && (
-<<<<<<< HEAD
         <ScrollView style={s.dropdown} nestedScrollEnabled>
-=======
-        <View style={s.dropdown}>
->>>>>>> origin/main
           {options.map((o) => (
             <Pressable key={o} onPress={() => { onChange(o); setOpen(false); }} style={s.dropItem}>
               <Text style={{ color: o === value ? colors.teal : colors.text, fontWeight: o === value ? '700' : '400' }}>{o}</Text>
             </Pressable>
           ))}
-<<<<<<< HEAD
         </ScrollView>
-=======
-        </View>
->>>>>>> origin/main
       )}
     </View>
   );
@@ -192,10 +143,7 @@ export function Chip({ label, active, onPress, tone = 'default', small }) {
     verified: { bg: colors.tealLight, fg: colors.tealDark, bd: colors.tealLight },
     amber: { bg: colors.amberLight, fg: '#9A5B00', bd: colors.amberLight },
     new: { bg: colors.amberLight, fg: '#9A5B00', bd: colors.amberLight },
-<<<<<<< HEAD
     red: { bg: colors.redLight, fg: colors.red, bd: colors.redLight },
-=======
->>>>>>> origin/main
   };
   const t = tones[tone];
   const Comp = onPress ? Pressable : View;
@@ -214,12 +162,8 @@ export function Progress({ value, color = colors.amber, track = 'rgba(255,255,25
   );
 }
 
-<<<<<<< HEAD
 export function Avatar({ text, size = 40, bg = colors.amber, uri }) {
   if (uri) return <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.border }} />;
-=======
-export function Avatar({ text, size = 40, bg = colors.amber }) {
->>>>>>> origin/main
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ color: colors.white, fontWeight: '800', fontSize: size * 0.36 }}>{text}</Text>
@@ -232,7 +176,6 @@ export function Note({ children, tone = 'teal', style }) {
   return <View style={[s.note, { backgroundColor: bg }, style]}><Text style={s.noteText}>{children}</Text></View>;
 }
 
-<<<<<<< HEAD
 export function ErrorNote({ message, onRetry }) {
   if (!message) return null;
   return (
@@ -252,8 +195,6 @@ export function Loading({ label }) {
   );
 }
 
-=======
->>>>>>> origin/main
 export function SectionTitle({ title, action, onAction }) {
   return (
     <View style={s.sectionRow}>
@@ -311,22 +252,14 @@ const s = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '600', color: colors.muted, marginBottom: 6 },
   input: { minHeight: 50, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, backgroundColor: colors.white, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' },
   error: { color: colors.red, fontSize: 12, marginTop: 4 },
-<<<<<<< HEAD
   hint: { color: colors.muted, fontSize: 12, marginTop: 4 },
   dropdown: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, marginTop: 4, maxHeight: 240 },
-=======
-  dropdown: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, marginTop: 4, overflow: 'hidden' },
->>>>>>> origin/main
   dropItem: { paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: colors.bg },
   card: { backgroundColor: colors.white, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 14, marginBottom: 10 },
   chip: { borderWidth: 1, borderRadius: radius.pill, paddingVertical: 6, paddingHorizontal: 12, marginRight: 8, marginBottom: 8, alignSelf: 'flex-start' },
   note: { borderRadius: radius.md, padding: 14, marginVertical: 8 },
   noteText: { color: colors.tealDark, fontSize: 14, lineHeight: 20 },
-<<<<<<< HEAD
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, marginBottom: 10 },
-=======
-  sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, marginBottom: 10 },
->>>>>>> origin/main
   section: { fontSize: 17, fontWeight: '800', color: colors.text },
   sectionAction: { color: colors.teal, fontWeight: '700' },
   tabBar: { flexDirection: 'row', backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 8 },

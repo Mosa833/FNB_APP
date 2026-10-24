@@ -1,0 +1,368 @@
+{
+  "info": {
+    "name": "SkillBridge job APIs",
+    "description": "Try each job source before adding keys to Supabase. Fill in the collection variables first (click the collection, then Variables). Never share an exported copy with your keys in it.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "adzuna_app_id",
+      "value": ""
+    },
+    {
+      "key": "adzuna_app_key",
+      "value": ""
+    },
+    {
+      "key": "jsearch_api_key",
+      "value": ""
+    },
+    {
+      "key": "greenhouse_token",
+      "value": "acme"
+    },
+    {
+      "key": "smartrecruiters_company",
+      "value": "smartrecruiters"
+    },
+    {
+      "key": "smartrecruiters_posting_id",
+      "value": ""
+    },
+    {
+      "key": "project_ref",
+      "value": ""
+    },
+    {
+      "key": "supabase_publishable_key",
+      "value": ""
+    },
+    {
+      "key": "user_access_token",
+      "value": ""
+    },
+    {
+      "key": "cron_secret",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Adzuna",
+      "item": [
+        {
+          "name": "Search jobs in South Africa",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "https://api.adzuna.com/v1/api/jobs/za/search/1?app_id={{adzuna_app_id}}&app_key={{adzuna_app_key}}&results_per_page=20&what=data capturer&where=Johannesburg&distance=30&max_days_old=30&sort_by=relevance",
+              "protocol": "https",
+              "host": [
+                "api",
+                "adzuna",
+                "com"
+              ],
+              "path": [
+                "v1",
+                "api",
+                "jobs",
+                "za",
+                "search",
+                "1"
+              ],
+              "query": [
+                {
+                  "key": "app_id",
+                  "value": "{{adzuna_app_id}}"
+                },
+                {
+                  "key": "app_key",
+                  "value": "{{adzuna_app_key}}"
+                },
+                {
+                  "key": "results_per_page",
+                  "value": "20"
+                },
+                {
+                  "key": "what",
+                  "value": "data capturer"
+                },
+                {
+                  "key": "where",
+                  "value": "Johannesburg"
+                },
+                {
+                  "key": "distance",
+                  "value": "30"
+                },
+                {
+                  "key": "max_days_old",
+                  "value": "30"
+                },
+                {
+                  "key": "sort_by",
+                  "value": "relevance"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Job categories in South Africa",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "https://api.adzuna.com/v1/api/jobs/za/categories?app_id={{adzuna_app_id}}&app_key={{adzuna_app_key}}",
+              "protocol": "https",
+              "host": [
+                "api",
+                "adzuna",
+                "com"
+              ],
+              "path": [
+                "v1",
+                "api",
+                "jobs",
+                "za",
+                "categories"
+              ],
+              "query": [
+                {
+                  "key": "app_id",
+                  "value": "{{adzuna_app_id}}"
+                },
+                {
+                  "key": "app_key",
+                  "value": "{{adzuna_app_key}}"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "JSearch (Google for Jobs)",
+      "item": [
+        {
+          "name": "Search jobs in South Africa",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{jsearch_api_key}}"
+              }
+            ],
+            "url": {
+              "raw": "https://api.openwebninja.com/jsearch/search-v2?query=cashier jobs in Johannesburg&country=za&date_posted=month&num_pages=1&radius=30",
+              "protocol": "https",
+              "host": [
+                "api",
+                "openwebninja",
+                "com"
+              ],
+              "path": [
+                "jsearch",
+                "search-v2"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "cashier jobs in Johannesburg"
+                },
+                {
+                  "key": "country",
+                  "value": "za"
+                },
+                {
+                  "key": "date_posted",
+                  "value": "month"
+                },
+                {
+                  "key": "num_pages",
+                  "value": "1"
+                },
+                {
+                  "key": "radius",
+                  "value": "30"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Greenhouse (no key)",
+      "item": [
+        {
+          "name": "Company board jobs with descriptions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "https://boards-api.greenhouse.io/v1/boards/{{greenhouse_token}}/jobs?content=true",
+              "protocol": "https",
+              "host": [
+                "boards-api",
+                "greenhouse",
+                "io"
+              ],
+              "path": [
+                "v1",
+                "boards",
+                "{{greenhouse_token}}",
+                "jobs"
+              ],
+              "query": [
+                {
+                  "key": "content",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "SmartRecruiters (no key)",
+      "item": [
+        {
+          "name": "Company postings in South Africa",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "https://api.smartrecruiters.com/v1/companies/{{smartrecruiters_company}}/postings?country=za&limit=100&offset=0",
+              "protocol": "https",
+              "host": [
+                "api",
+                "smartrecruiters",
+                "com"
+              ],
+              "path": [
+                "v1",
+                "companies",
+                "{{smartrecruiters_company}}",
+                "postings"
+              ],
+              "query": [
+                {
+                  "key": "country",
+                  "value": "za"
+                },
+                {
+                  "key": "limit",
+                  "value": "100"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "One posting with its description",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "https://api.smartrecruiters.com/v1/companies/{{smartrecruiters_company}}/postings/{{smartrecruiters_posting_id}}",
+              "protocol": "https",
+              "host": [
+                "api",
+                "smartrecruiters",
+                "com"
+              ],
+              "path": [
+                "v1",
+                "companies",
+                "{{smartrecruiters_company}}",
+                "postings",
+                "{{smartrecruiters_posting_id}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "SkillBridge functions",
+      "item": [
+        {
+          "name": "Run the company board sync once",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-cron-secret",
+                "value": "{{cron_secret}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "https://{{project_ref}}.supabase.co/functions/v1/jobs-sync",
+              "protocol": "https",
+              "host": [
+                "{{project_ref}}",
+                "supabase",
+                "co"
+              ],
+              "path": [
+                "functions",
+                "v1",
+                "jobs-sync"
+              ]
+            }
+          }
+        },
+        {
+          "name": "My jobs with match scores (needs a logged in user's token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "apikey",
+                "value": "{{supabase_publishable_key}}"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{user_access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"refresh\": true }"
+            },
+            "url": {
+              "raw": "https://{{project_ref}}.supabase.co/functions/v1/jobs-for-me",
+              "protocol": "https",
+              "host": [
+                "{{project_ref}}",
+                "supabase",
+                "co"
+              ],
+              "path": [
+                "functions",
+                "v1",
+                "jobs-for-me"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

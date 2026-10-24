@@ -1,6 +1,6 @@
 // Creates a skills test for a skill that has no test yet, then saves it so everyone can use it.
 import { serve, json, adminClient, requireUser, HttpError } from "../_shared/common.ts";
-import { askClaude, parseJSON } from "../_shared/ai.ts";
+import { askGemini, parseJSON } from "../_shared/ai.ts";
 
 type Generated = { name: string; minutes: number; questions: { question: string; options: string[]; answer_index: number }[] };
 
@@ -21,17 +21,20 @@ serve(async (req) => {
 
   const system =
     "You write fair, practical skills tests for young people in South Africa looking for entry-level work. " +
-    "Use plain English, real workplace situations and South African context (rand, local places) where it helps. " +
-    "No trick questions. Reply with JSON only.";
+    "Every question must test the named skill itself, the way it is used on the job. Do not ask general knowledge, " +
+    "history or trivia about the skill, and do not ask about other skills. " +
+    "Use plain English, real workplace situations and South African context (rand, local places, local laws such as POPIA) where it helps. " +
+    "Every fact must be correct and every question must have exactly one clearly correct answer. No trick questions. Reply with JSON only.";
   const prompt =
     `Create a skills test for the skill "${name}".\n` +
     `If this is not a real work skill, or it is offensive, reply {"error":"not a skill"}.\n` +
     `Otherwise reply in this exact JSON shape:\n` +
     `{"name":"short test name","minutes":8,"questions":[{"question":"...","options":["...","...","...","..."],"answer_index":0}]}\n` +
     `Rules: exactly 8 questions, exactly 4 options each, one correct answer, vary the position of the correct answer, ` +
-    `each question under 30 words, test practical knowledge someone would use on the job.`;
+    `each question under 30 words, test practical knowledge someone would use on the job.\n` +
+    `Mix: about 3 "what does this mean / which tool" questions and 5 "what would you do in this work situation" questions, easy to medium level.`;
 
-  const raw = parseJSON<Generated & { error?: string }>(await askClaude(system, prompt, 3000));
+  const raw = parseJSON<Generated & { error?: string }>(await askGemini(system, prompt, { json: true }));
   if (raw.error) throw new HttpError(400, "We could not create a test for this skill.");
 
   const questions = (raw.questions ?? []).filter(

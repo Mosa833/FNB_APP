@@ -6,7 +6,18 @@ You will need:
 - A Supabase account (supabase.com)
 - A Google Cloud account with billing turned on (for address search)
 - An Anthropic API key (console.anthropic.com) for interview questions and grading, new skills tests, the career coach and personal guides
-- An OpenAI API key (platform.openai.com) for turning recorded answers into text
+- A Gemini API key (aistudio.google.com) for job match scores, skills tests, guides and turning recorded answers into text
+- Adzuna keys (developer.adzuna.com) and a JSearch key (app.openwebninja.com/api/jsearch) for live job search in South Africa
+
+## Quick way (Windows): setup.ps1
+
+After step 1 below, run this inside the project folder:
+```
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
+```
+It asks for your keys one at a time and does steps 2, 4 and 6 for you: it creates the tables, writes the `.env` file, saves the server keys in Supabase and deploys the functions. You still do the two clicks in step 3 and the Google steps in 5 and 7. If something fails, fix it and run the script again. It is safe to run more than once.
+
+If you prefer the browser, paste `supabase/setup_all.sql` into the SQL Editor once instead of running the three migration files.
 
 ## 1. Create the Supabase project
 
@@ -20,6 +31,8 @@ Option A, in the browser:
 2. Paste everything from `supabase/migrations/20261024000001_schema.sql` and click Run.
 3. Make a new query, paste `supabase/migrations/20261024000002_seed.sql` and click Run.
 4. Make a new query, paste `supabase/migrations/20261024000003_coach_and_guides.sql` and click Run.
+5. Make a new query, paste `supabase/migrations/20261024000004_live_jobs.sql` and click Run.
+6. Make a new query, paste `supabase/migrations/20261024000005_jsearch.sql` and click Run.
 
 Run them in this order.
 
@@ -43,7 +56,7 @@ In Authentication:
    <p>Your SkillBridge reset code is: <strong>{{ .Token }}</strong></p>
    ```
    The app asks for this code, so the email must include `{{ .Token }}`.
-3. **Redirect URLs** (only needed for Google sign in). Under URL Configuration, add:
+3. **Redirect URLs** (needed for the confirmation email and Google sign in). Under URL Configuration, add both of these. Without them, the confirmation link opens Chrome on a page that doesn't exist:
    ```
    exp://**
    skillbridge://**
@@ -70,14 +83,14 @@ Run inside the project folder (after `npx supabase link` from step 2):
 ```
 npx supabase secrets set GOOGLE_MAPS_API_KEY=your-google-key
 npx supabase secrets set ANTHROPIC_API_KEY=your-anthropic-key
-npx supabase secrets set OPENAI_API_KEY=your-openai-key
+npx supabase secrets set GEMINI_API_KEY=your-gemini-key
 npx supabase functions deploy --no-verify-jwt
 ```
 
 Optional settings:
 - `ANTHROPIC_MODEL` (default `claude-sonnet-5-5`), used for tests, interviews and guides
 - `ANTHROPIC_CHAT_MODEL` (default `claude-haiku-5-5`), used for the career coach chat
-- `OPENAI_TRANSCRIBE_MODEL` (default `whisper-1`)
+- `GEMINI_MODEL` (default `gemini-3.5-flash`), used to turn recordings into text
 
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are already available to functions. You don't need to set them.
 
@@ -85,11 +98,14 @@ What each function does:
 | Function | Job |
 |---|---|
 | places-autocomplete | Address suggestions while typing (Google Places) |
-| generate-test | Makes and saves an 8 question test for a skill that has none yet |
+| generate-test | Gemini makes and saves an 8 question test for a skill that has none yet |
 | interview-start | Checks the 3 per month limit and writes 5 questions for the chosen job |
 | interview-grade | Turns each recording into text, grades it and writes a better answer |
+| jobs-for-me | Searches Adzuna and JSearch live for the user, removes duplicates and posts older than 30 days, adds company board jobs, and asks Gemini for the user's chance of getting each job |
+| jobs-sync | Pulls jobs from the Greenhouse and SmartRecruiters companies in `job_sources` (runs every 3 hours) |
+| test-feedback | Anthropic Claude explains the questions the user got wrong in a skills test |
 | career-coach | Career coach chat that knows the user's profile and the jobs they saved or applied for (40 messages per day) |
-| career-guide | Writes a personal guide for a job they saved or applied for, or for a problem they describe (10 per day) |
+| career-guide | Gemini writes a personal guide for a job they saved or applied for, or for a problem they describe (10 per day) |
 | delete-account | Removes the user's files and account |
 
 ## 7. Google sign in (optional)
@@ -100,7 +116,60 @@ What each function does:
 
 Until this is done, the Google buttons show an error and email sign up still works.
 
-## 8. Check that it works
+## 8. Which AI does what
+
+| Feature | AI |
+|---|---|
+| Job match score and chance of getting the job | Gemini |
+| Skills test questions | Gemini |
+| Mentorship guides | Gemini |
+| Turning interview recordings into text | Gemini |
+| Interview grading and better answers | Anthropic Claude |
+| Feedback on skills tests (the score itself is marked exactly by the database) | Anthropic Claude |
+| Career coach chat | Anthropic Claude |
+| Interview questions | Anthropic Claude |
+
+Optional: `GEMINI_TEXT_MODEL` sets the Gemini model for matching, tests and guides (default: the same as `GEMINI_MODEL`).
+
+## 9. Live jobs
+
+**Adzuna** (searched live for each person, every 3 hours or when they tap Refresh):
+1. Sign up at developer.adzuna.com and open your dashboard to see your `app_id` and `app_key`.
+2. Save them: `npx supabase secrets set ADZUNA_APP_ID=... ADZUNA_APP_KEY=... --project-ref YOUR_REF` (setup.ps1 also asks for them).
+3. Adzuna's terms say people must be sent to jobs through Adzuna's own link, so the Apply button does that, and the app shows "Jobs by Adzuna".
+
+**JSearch** (Google for Jobs: LinkedIn, Indeed, local job boards and company career pages):
+1. Get a key at app.openwebninja.com/api/jsearch. There is a free tier. Check your plan's monthly limit on their pricing page.
+2. Save it: `npx supabase secrets set JSEARCH_API_KEY=... --project-ref YOUR_REF` (setup.ps1 also asks for it).
+3. Each search uses 1 request credit and returns up to 10 jobs. The app searches up to 2 terms per person, at most every 3 hours or when they tap Refresh. To use fewer credits set `JSEARCH_MAX_QUERIES=1`, or `0` to pause JSearch.
+4. When a job has a link straight to the employer, the app uses it. The app shows which site each job comes from.
+5. Optional: `JSEARCH_EXCLUDE_PUBLISHERS` is a comma separated list of sites to leave out (default `BeBee`).
+
+**Same job on several sites:** the app keeps one copy, in this order: the company's own board, a direct employer link, Adzuna, then other job sites.
+
+**Greenhouse and SmartRecruiters** (no keys; you choose the companies):
+1. Find companies hiring in South Africa that use them. Their careers page address shows the name to use:
+   - `job-boards.greenhouse.io/acme` or `boards.greenhouse.io/acme` means Greenhouse, name `acme`
+   - `jobs.smartrecruiters.com/AcmeGroup` means SmartRecruiters, name `AcmeGroup`
+2. Add them in the SQL Editor:
+   ```
+   insert into public.job_sources (provider, token, company_name) values
+     ('greenhouse', 'acme', 'Acme'),
+     ('smartrecruiters', 'AcmeGroup', 'Acme Group');
+   ```
+   Only jobs in South Africa (or remote and open to Africa) are kept.
+3. setup.ps1 made `supabase/schedule_jobs_sync.sql`. Paste it into the SQL Editor and click Run. It runs the sync every 3 hours.
+4. To run it once straight away, in PowerShell (use the CRON_SECRET from that file):
+   ```
+   Invoke-RestMethod -Method Post -Uri "https://YOUR_REF.supabase.co/functions/v1/jobs-sync" -Headers @{ "x-cron-secret" = "YOUR_CRON_SECRET" }
+   ```
+   It lists how many jobs each company has. If one says "failed", check its name in `job_sources`. The `last_error` column shows why.
+
+**Sample jobs:** the 6 sample jobs only show when there are fewer than 5 real jobs.
+
+**Postman:** import `SkillBridge-jobs.postman_collection.json` to try each job API with your keys before you add them to Supabase.
+
+## 10. Check that it works
 
 1. Sign up in the app. A new row should appear in Table Editor, `profiles`.
 2. Type your area on the sign up screen. Suggestions should appear after two letters.
@@ -114,6 +183,9 @@ Until this is done, the Google buttons show an error and email sign up still wor
 
 - **"Connect Supabase" screen:** the `.env` file is missing or Expo was not restarted with `--clear`.
 - **Address search says it is not available:** check the GOOGLE_MAPS_API_KEY secret, that Places API (New) is enabled and that billing is on. Function logs are in the Supabase dashboard under Edge Functions.
-- **Interview grading fails:** check the ANTHROPIC_API_KEY and OPENAI_API_KEY secrets and that both accounts have credit. A failed session does not count towards the monthly limit, and the app offers to try grading again.
+- **Interview grading fails:** check the ANTHROPIC_API_KEY and GEMINI_API_KEY secrets and that both accounts have credit. A failed session does not count towards the monthly limit, and the app offers to try grading again.
 - **"Server setting ... is missing":** a secret from step 6 was not set.
+- **Jobs tab shows sample jobs only:** add the Adzuna or JSearch keys or some companies to `job_sources`, and check the jobs-for-me and jobs-sync logs.
+- **No JSearch jobs:** the jobs-for-me logs show "JSearch error" with the reason, for example a wrong key or a used-up monthly limit.
+- **Jobs show but no chances:** check GEMINI_API_KEY. The jobs-for-me logs show "Scoring batch failed" if Gemini refused.
 - **Coach or guides say they are not available:** check ANTHROPIC_API_KEY and that the third migration (coach_and_guides) was run.

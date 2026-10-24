@@ -5,7 +5,6 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AppProvider, useApp } from './src/store';
 import { TabBar } from './src/ui';
 import { colors } from './src/theme';
-<<<<<<< HEAD
 import { Splash, Setup, Landing, Register, Login, Forgot } from './src/screens/auth';
 import { Home, Profile, EditProfile, EducationForm, EducationDetail, Skills, ExperienceForm, Languages, Preferences } from './src/screens/profile';
 import { Assessments, TestQuestion, TestResult } from './src/screens/tests';
@@ -24,25 +23,6 @@ const SCREENS = {
 };
 
 const DARK_SCREENS = ['Splash', 'InterviewSession'];
-=======
-import { Splash, Landing, Register, Login, Forgot } from './src/screens/auth';
-import { Home, Profile, EditProfile, AddEducation, Skills } from './src/screens/profile';
-import { Assessments, TestQuestion, TestResult } from './src/screens/tests';
-import { Jobs, JobDetail, Course } from './src/screens/jobs';
-import { Grow, Mentorship, Guide, Locked, CVBuilder, InterviewSetup, VideoAnswer } from './src/screens/grow';
-import { More, AccountDetails, Notifications, Privacy, Help } from './src/screens/more';
-
-const SCREENS = {
-  Splash, Landing, Register, Login, Forgot,
-  Home, Profile, EditProfile, AddEducation, Skills,
-  Assessments, TestQuestion, TestResult,
-  Jobs, JobDetail, Course,
-  Grow, Mentorship, Guide, Locked, CVBuilder, InterviewSetup, VideoAnswer,
-  More, AccountDetails, Notifications, Privacy, Help,
-};
-
-const DARK_SCREENS = ['Splash', 'VideoAnswer'];
->>>>>>> origin/main
 
 function Navigator() {
   const { current, stack, goBack, TABS } = useApp();
@@ -50,19 +30,12 @@ function Navigator() {
   // Android hardware back button
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-<<<<<<< HEAD
       if (current.name === 'InterviewSession') return true; // use the close button so recordings are not lost by accident
-=======
->>>>>>> origin/main
       if (stack.length > 1) { goBack(); return true; }
       return false;
     });
     return () => sub.remove();
-<<<<<<< HEAD
   }, [stack.length, current.name]);
-=======
-  }, [stack.length]);
->>>>>>> origin/main
 
   const ScreenComp = SCREENS[current.name] || Home;
   return (

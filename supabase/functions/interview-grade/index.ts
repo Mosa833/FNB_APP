@@ -31,7 +31,7 @@ serve(async (req) => {
         if (!a.audio_path?.startsWith(`${user.id}/${session_id}/`)) return "";
         const { data: file, error } = await admin.storage.from("interview-audio").download(a.audio_path);
         if (error || !file) return "";
-        return await transcribe(file, a.audio_path.split("/").pop() ?? "answer.m4a");
+        return await transcribe(file, a.audio_path.split("/").pop() ?? "answer.wav");
       }),
     );
 

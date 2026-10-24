@@ -1,6 +1,6 @@
-// Writes a short personal guide for a problem the user has, or for a job they applied for or saved.
+// Gemini writes a short personal guide for a problem the user has, or for a job they applied for or saved.
 import { serve, json, adminClient, requireUser, HttpError } from "../_shared/common.ts";
-import { askClaude, parseJSON } from "../_shared/ai.ts";
+import { askGemini, parseJSON } from "../_shared/ai.ts";
 import { profileSummary } from "../_shared/profile.ts";
 
 const DAILY_LIMIT = 10;
@@ -45,7 +45,7 @@ ${summary}`
 The person:
 ${summary}`;
 
-  const out = parseJSON<{ title: string; body: string }>(await askClaude(system, prompt, 1500));
+  const out = parseJSON<{ title: string; body: string }>(await askGemini(system, prompt, { json: true }));
   if (!out.title || !out.body) throw new HttpError(502, "The guide could not be written. Please try again.");
 
   const { data: saved, error } = await admin.from("guides").insert({

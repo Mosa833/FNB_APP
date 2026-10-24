@@ -22,3 +22,12 @@ verify_jwt = false
 
 [functions.career-guide]
 verify_jwt = false
+
+[functions.jobs-for-me]
+verify_jwt = false
+
+[functions.jobs-sync]
+verify_jwt = false
+
+[functions.test-feedback]
+verify_jwt = false
