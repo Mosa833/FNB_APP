@@ -339,7 +339,7 @@ export function Forgot() {
   };
 
   const setNewPassword = async () => {
-    if (!/^\d{6,10}$/.test(code.trim())) { setError('Enter the code from the email.'); return; }
+    if (!/^\d{6,10}$/.test(code.trim())) { setError('Enter the PIN from the email.'); return; }
     if (password.length < 8) { setError('Your new password needs at least 8 characters.'); return; }
     try {
       setBusy(true); setError('');
@@ -380,17 +380,17 @@ export function Forgot() {
         <>
           <Field label="Email" value={email} onChangeText={setEmail} placeholder="thabo@email.com" keyboardType="email-address" />
           <ErrorNote message={error} />
-          <Button title="Send reset code" onPress={sendCode} loading={busy} />
-          <Note>We'll email you a code. Check your spam folder if you don't see it.</Note>
+          <Button title="Send me a PIN" onPress={sendCode} loading={busy} />
+          <Note>We'll email you a PIN. Check your spam folder if you don't see it.</Note>
         </>
       ) : (
         <>
-          <Note>We sent a code to {email.trim()}. Enter it below with your new password.</Note>
-          <Field label="Code from the email" value={code} onChangeText={setCode} placeholder="123456" keyboardType="number-pad" />
+          <Note>We sent a PIN to {email.trim()}. Enter it below with your new password.</Note>
+          <Field label="PIN from the email" value={code} onChangeText={setCode} placeholder="123456" keyboardType="number-pad" />
           <Field label="New password" value={password} onChangeText={setPassword} placeholder="At least 8 characters" secure />
           <ErrorNote message={error} />
           <Button title="Save new password" onPress={setNewPassword} loading={busy} />
-          <Button title="Send a new code" variant="link" onPress={() => { setStep('email'); setCode(''); }} />
+          <Button title="Send a new PIN" variant="link" onPress={() => { setStep('email'); setCode(''); }} />
         </>
       )}
     </Screen>

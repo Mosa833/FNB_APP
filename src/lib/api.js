@@ -11,7 +11,7 @@ export function friendlyError(err) {
   if (/non-2xx status code/i.test(msg)) return 'Something went wrong on the server. Please try again.';
   if (/Network request failed|Failed to fetch/i.test(msg)) return 'No internet connection. Check your data or Wi-Fi and try again.';
   if (/rate limit/i.test(msg)) return 'Too many tries. Please wait a minute and try again.';
-  if (/Token has expired|otp/i.test(msg)) return 'That code is wrong or has expired. Ask for a new one.';
+  if (/Token has expired|otp/i.test(msg)) return 'That PIN is wrong or has expired. Ask for a new one.';
   return msg || 'Something went wrong. Please try again.';
 }
 
@@ -196,8 +196,8 @@ export async function makeGuide({ topic, jobId }) {
 
 // ---------- Live jobs and AI match scores ----------
 // Searches Adzuna for this person, adds company board jobs and returns them with Gemini's match score
-export async function myJobs({ refresh = false } = {}) {
-  return invoke('jobs-for-me', { refresh });
+export async function myJobs({ refresh = false, query = '', where = '' } = {}) {
+  return invoke('jobs-for-me', query ? { query, where } : { refresh });
 }
 // Already-scored jobs, fast, no AI call (used on Home)
 export async function cachedMatches(limit = 3) {

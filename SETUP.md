@@ -34,6 +34,7 @@ Option A, in the browser:
 5. Make a new query, paste `supabase/migrations/20261024000004_live_jobs.sql` and click Run.
 6. Make a new query, paste `supabase/migrations/20261024000005_jsearch.sql` and click Run.
 7. Make a new query, paste `supabase/migrations/20261024000006_cv_import.sql` and click Run.
+8. Make a new query, paste `supabase/migrations/20261024000007_job_search.sql` and click Run.
 
 Run them in this order.
 
@@ -52,11 +53,11 @@ This creates the tables, security rules, storage buckets (avatars, certificates,
 In Authentication:
 
 1. **Confirm email.** Under Sign In / Providers, then Email, you can switch off "Confirm email" for the hackathon so people can use the app straight after signing up. If you leave it on, the app tells people to check their email first.
-2. **Password reset code.** Under Emails (Email Templates), open "Reset password" and add the code to the message, for example:
-   ```
-   <p>Your SkillBridge reset code is: <strong>{{ .Token }}</strong></p>
-   ```
-   The app asks for this code, so the email must include `{{ .Token }}`.
+2. **Password reset PIN.** Under Emails (Email Templates), open **Reset password**:
+   - Subject: `Your SkillBridge PIN`
+   - Message body: paste everything from `supabase/templates/reset_password.html`
+   - Click **Save**.
+   The app asks for this PIN, so the email must include `{{ .Token }}`. The PIN length (6 digits by default) and how long it lasts are set under Sign In / Providers, Email.
 3. **Redirect URLs** (needed for the confirmation email and Google sign in). Under URL Configuration, add both of these. Without them, the confirmation link opens Chrome on a page that doesn't exist:
    ```
    exp://**
@@ -147,6 +148,8 @@ Optional: `GEMINI_TEXT_MODEL` sets the Gemini model for matching, tests and guid
 3. Each search uses 1 request credit and returns up to 10 jobs. The app searches up to 2 terms per person, at most every 3 hours or when they tap Refresh. To use fewer credits set `JSEARCH_MAX_QUERIES=1`, or `0` to pause JSearch.
 4. When a job has a link straight to the employer, the app uses it. The app shows which site each job comes from.
 5. Optional: `JSEARCH_EXCLUDE_PUBLISHERS` is a comma separated list of sites to leave out (default `BeBee`).
+
+**Search box:** users can search for any job and place. Each search runs a live Adzuna and JSearch search (1 JSearch credit), at most once every 20 seconds per user. Set `JSEARCH_ON_SEARCH=0` to search only Adzuna and stored jobs.
 
 **Same job on several sites:** the app keeps one copy, in this order: the company's own board, a direct employer link, Adzuna, then other job sites.
 

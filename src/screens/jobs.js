@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, Alert, TextInput, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import { colors, radius } from '../theme';
@@ -40,16 +40,29 @@ export function Jobs() {
   const [filter, setFilter] = useState('All');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [what, setWhat] = useState('');
+  const [where, setWhere] = useState('');
+  const [active, setActive] = useState(null); // the search being shown, or null for the usual list
 
-  const load = async (refresh = false) => {
+  const load = async (refresh = false, q = null) => {
     try {
       setError(''); setBusy(true);
       if (isGuest) {
         const jobs = await api.latestJobs();
         const real = jobs.filter((j) => j.source !== 'demo');
-        setRes({ jobs: real.length >= 5 ? real : jobs });
+        let list = real.length >= 5 ? real : jobs;
+        if (q) {
+          // Guests search the jobs we already have
+          const terms = q.query.toLowerCase().split(/\s+/).filter(Boolean);
+          const place = q.where.toLowerCase();
+          list = list.filter((j) => {
+            const hay = `${j.title} ${j.company} ${j.description || ''}`.toLowerCase();
+            return terms.every((t) => hay.includes(t)) && (!place || `${j.area} ${j.full_area || ''}`.toLowerCase().includes(place) || j.remote);
+          });
+        }
+        setRes({ jobs: list, search: q ? { ...q, live: false } : null });
       } else {
-        const [r, s] = await Promise.all([api.myJobs({ refresh }), api.fetchSavedAndApplied()]);
+        const [r, s] = await Promise.all([api.myJobs(q ? { query: q.query, where: q.where } : { refresh }), api.fetchSavedAndApplied()]);
         setRes(r);
         setSaved(s.saved);
       }
@@ -61,6 +74,17 @@ export function Jobs() {
     }
   };
   useEffect(() => { load(); }, []);
+
+  const runSearch = () => {
+    const query = what.trim();
+    if (!query) return;
+    Keyboard.dismiss();
+    const q = { query, where: where.trim() };
+    setActive(q);
+    setFilter('All');
+    load(false, q);
+  };
+  const clearSearch = () => { setWhat(''); setWhere(''); setActive(null); load(); };
 
   const jobs = (res?.jobs || []).filter((j) => {
     if (filter === 'All') return true;
@@ -77,7 +101,7 @@ export function Jobs() {
     <Screen>
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Text style={[text.h1, { flex: 1 }]}>Opportunities</Text>
-        {!isGuest && (
+        {!isGuest && !active && (
           <Pressable onPress={() => load(true)} disabled={busy} hitSlop={10} style={{ flexDirection: 'row', alignItems: 'center', opacity: busy ? 0.4 : 1 }} accessibilityLabel="Find new jobs">
             <Ionicons name="refresh" size={18} color={colors.teal} />
             <Text style={[text.link, { marginLeft: 4 }]}>Refresh</Text>
@@ -87,6 +111,49 @@ export function Jobs() {
       <Text style={[text.muted, { marginBottom: 12 }]}>
         {isGuest ? 'Latest jobs in South Africa.' : 'Real jobs picked for your profile, best chance first.'}
       </Text>
+
+      <View style={st.searchBox}>
+        <View style={st.searchRow}>
+          <Ionicons name="search" size={18} color={colors.muted} />
+          <TextInput
+            style={st.searchInput}
+            value={what}
+            onChangeText={setWhat}
+            placeholder="Search jobs, e.g. cashier or data capturer"
+            placeholderTextColor="#9AA6A4"
+            returnKeyType="search"
+            onSubmitEditing={runSearch}
+            maxLength={60}
+            accessibilityLabel="What job are you looking for"
+          />
+          {what ? <Pressable onPress={() => setWhat('')} hitSlop={10} accessibilityLabel="Clear search words"><Ionicons name="close-circle" size={18} color={colors.muted} /></Pressable> : null}
+        </View>
+        <View style={[st.searchRow, { borderTopWidth: 1, borderTopColor: colors.border }]}>
+          <Ionicons name="location-outline" size={18} color={colors.muted} />
+          <TextInput
+            style={st.searchInput}
+            value={where}
+            onChangeText={setWhere}
+            placeholder={isGuest ? 'Where? (optional)' : 'Where? Leave empty for near you'}
+            placeholderTextColor="#9AA6A4"
+            returnKeyType="search"
+            onSubmitEditing={runSearch}
+            maxLength={60}
+            accessibilityLabel="Where"
+          />
+        </View>
+      </View>
+      <Button title={busy && active ? 'Searching...' : 'Search'} onPress={runSearch} disabled={!what.trim() || busy} style={{ minHeight: 44, marginBottom: 10 }} />
+
+      {active ? (
+        <View style={st.resultsBar}>
+          <Text style={[text.body, { flex: 1 }]}>
+            Results for <Text style={{ fontWeight: '800' }}>"{active.query}"</Text>{(res?.search?.where || active.where) ? ` in ${res?.search?.where || active.where}` : ''}
+          </Text>
+          <Pressable onPress={clearSearch} hitSlop={10}><Text style={text.link}>Clear</Text></Pressable>
+        </View>
+      ) : null}
+      {active && res?.search?.too_soon ? <Note>You searched a moment ago, so these are jobs we already have. Search again in a few seconds for new ones.</Note> : null}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
         {FILTERS.filter((f) => !(isGuest && (f === 'Saved' || f === 'Near me'))).map((f) => <Chip key={f} label={f} active={filter === f} onPress={() => setFilter(f)} />)}
       </ScrollView>
@@ -98,8 +165,8 @@ export function Jobs() {
       {!isGuest && res?.pending > 0 && !res?.ai_error && <Note>We're still checking {res.pending} more job{res.pending === 1 ? '' : 's'} against your profile. Tap Refresh in a minute to see them.</Note>}
       <ErrorNote message={error} onRetry={() => load()} />
 
-      {res === null || (busy && !res.jobs?.length) ? (
-        <Loading label={isGuest ? 'Loading jobs...' : 'Finding jobs that fit your profile...'} />
+      {res === null || (busy && (!res.jobs?.length || (active ? res.search?.query !== active.query : Boolean(res.search)))) ? (
+        <Loading label={active ? `Searching live jobs for "${active.query}"...` : isGuest ? 'Loading jobs...' : 'Finding jobs that fit your profile...'} />
       ) : jobs.map((j) => (
         <Card key={j.id} onPress={() => navigate('JobDetail', { job: j })}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
@@ -114,11 +181,14 @@ export function Jobs() {
       ))}
       {res !== null && !busy && jobs.length === 0 && !error && (
         <Card>
-          <Text style={text.h3}>{filter === 'Saved' ? 'No saved jobs yet' : 'No matching jobs right now'}</Text>
+          <Text style={text.h3}>{filter === 'Saved' ? 'No saved jobs yet' : active ? `No jobs found for "${active.query}"` : 'No matching jobs right now'}</Text>
           <Text style={[text.muted, { marginTop: 4 }]}>
-            {filter === 'Saved' ? 'Tap the heart on a job to save it.' : 'Add more skills and the work you are looking for to your profile, then tap Refresh.'}
+            {filter === 'Saved' ? 'Tap the heart on a job to save it.'
+              : active ? 'Try a shorter or different word, for example "admin" instead of "admin clerk", or another place.'
+              : 'Add more skills and the work you are looking for to your profile, then tap Refresh.'}
           </Text>
-          {filter !== 'Saved' && !isGuest ? <Button title="Update my profile" variant="outline" onPress={() => navigate('Profile')} style={{ marginTop: 10 }} /> : null}
+          {filter !== 'Saved' && !isGuest && !active ? <Button title="Update my profile" variant="outline" onPress={() => navigate('Profile')} style={{ marginTop: 10 }} /> : null}
+          {active ? <Button title="Back to my jobs" variant="outline" onPress={clearSearch} style={{ marginTop: 10 }} /> : null}
         </Card>
       )}
       {hasAdzuna ? <Text style={[text.small, { textAlign: 'center', marginTop: 10 }]}>Jobs by Adzuna</Text> : null}
@@ -275,4 +345,8 @@ const st = StyleSheet.create({
   lessonNo: { width: 30, height: 30, borderRadius: 15, backgroundColor: colors.tealLight, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   ring: { width: 72, height: 72, borderRadius: 36, borderWidth: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
   row: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 6 },
+  searchBox: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, marginBottom: 8 },
+  searchRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, minHeight: 46 },
+  searchInput: { flex: 1, marginLeft: 8, fontSize: 15, color: colors.text, paddingVertical: 10 },
+  resultsBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.tealLight, borderRadius: radius.sm, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 8 },
 });

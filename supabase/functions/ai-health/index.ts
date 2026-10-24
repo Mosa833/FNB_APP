@@ -35,7 +35,7 @@ serve(async (req) => {
   if (has("GROQ_API_KEY")) {
     await run("Groq: grading, interview questions, test feedback", async () => `works with ${await probeGroq(GROQ_MODELS())}`,
       "Check GROQ_API_KEY at console.groq.com/keys. A 429 means you hit the free plan's rate limit, so wait a minute. If it says no model worked, set GROQ_MODEL to a name from the model list below.");
-    await run("Groq: career coach", async () => `works with ${await probeGroq(GROQ_CHAT_MODELS())}`,
+    await run("Groq: career coach (full reply)", async () => `works with ${await probeGroq(GROQ_CHAT_MODELS(), true)}`,
       "Set GROQ_CHAT_MODEL to a name from the model list below.");
   }
   if (has("GEMINI_API_KEY")) {

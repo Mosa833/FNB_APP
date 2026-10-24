@@ -9,6 +9,7 @@ const MIN_REFRESH_GAP_MS = 5 * 60 * 1000;    // and never more than once per 5 m
 const MAX_NEW_SCORES = 45;                   // AI scoring per request, to keep it quick and cheap
 const BATCH = 15;
 const MAX_AGE_DAYS = 30;
+const SEARCH_GAP_MS = 20 * 1000; // one live search per user every 20 seconds
 // Which copy to keep when the same job is posted on several sites (lower is better)
 const rankSource = (j: any) =>
   j.source === "greenhouse" || j.source === "smartrecruiters" ? 0 : j.apply_direct ? 1 : j.source === "adzuna" ? 2 : j.source === "demo" ? 4 : 3;
@@ -28,6 +29,9 @@ serve(async (req) => {
   const user = await requireUser(req, admin);
   const body = await req.json().catch(() => ({}));
   const wantRefresh = Boolean(body.refresh);
+  // Search box: what and where the user typed (where is optional)
+  const clean = (v: unknown) => String(v ?? "").replace(/[^\p{L}\p{N} ,.+#&'/-]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 60);
+  const search = clean(body.query) ? { query: clean(body.query), where: clean(body.where) } : null;
 
   const [p, sk, edu, exp, langs] = await Promise.all([
     admin.from("profiles").select("*").eq("id", user.id).single(),
@@ -40,24 +44,31 @@ serve(async (req) => {
   if (!prof) throw new HttpError(404, "Profile not found.");
   const skills = sk.data ?? [], education = edu.data ?? [], experience = exp.data ?? [], languages = langs.data ?? [];
 
-  // ---------- 1. Live Adzuna search for this person ----------
+  // ---------- 1. Live search: Adzuna and JSearch ----------
   const last = prof.jobs_refreshed_at ? new Date(prof.jobs_refreshed_at).getTime() : 0;
   const age = Date.now() - last;
+  const lastSearch = prof.jobs_searched_at ? new Date(prof.jobs_searched_at).getTime() : 0;
   let searched = false;
+  let searchTooSoon = false;
   const freshIds = new Set<string>();
   const liveOn = adzunaConfigured() || jsearchConfigured();
-  if (liveOn && (age > REFRESH_EVERY_MS || (wantRefresh && age > MIN_REFRESH_GAP_MS))) {
-    const queries = [...new Set([
+  const parts = String(prof.location ?? "").split(",").map((x: string) => x.trim()).filter(Boolean);
+  const homeArea = parts.length >= 2 ? parts[1] : parts[0] ?? "";
+  if (search && liveOn && Date.now() - lastSearch < SEARCH_GAP_MS) searchTooSoon = true;
+  const runLive = liveOn && (search ? !searchTooSoon : (age > REFRESH_EVERY_MS || (wantRefresh && age > MIN_REFRESH_GAP_MS)));
+  if (runLive) {
+    const queries = search ? [search.query] : [...new Set([
       ...(prof.job_types ?? []),
       ...skills.filter((s: any) => s.verified).map((s: any) => s.name),
       ...skills.map((s: any) => s.name),
     ].map((q: string) => q.trim()).filter(Boolean))].slice(0, 4);
     if (!queries.length) queries.push("entry level");
-    const parts = String(prof.location ?? "").split(",").map((x: string) => x.trim()).filter(Boolean);
-    const where = parts.length >= 2 ? parts[1] : parts[0] ?? "";
+    const where = search ? (search.where || homeArea) : homeArea;
     const km = prof.max_travel_km || 30;
     // JSearch charges per request, so it searches fewer terms (JSEARCH_MAX_QUERIES, default 2)
-    const jsearchQueries = queries.slice(0, Math.max(0, Number(Deno.env.get("JSEARCH_MAX_QUERIES") ?? 2)));
+    const jsearchQueries = search
+      ? (Deno.env.get("JSEARCH_ON_SEARCH") === "0" ? [] : queries)
+      : queries.slice(0, Math.max(0, Number(Deno.env.get("JSEARCH_MAX_QUERIES") ?? 2)));
     const results = (await Promise.all([
       ...(adzunaConfigured() ? queries.map((q) => fetchAdzuna(q, where, km)) : []),
       ...(jsearchConfigured() ? jsearchQueries.map((q) => fetchJSearch(q, where, km)) : []),
@@ -65,7 +76,7 @@ serve(async (req) => {
     const unique = [...new Map(results.map((j) => [`${j.source}:${j.external_id}`, j])).values()];
     const saved = await saveJobs(admin, unique);
     saved.forEach((s) => freshIds.add(s.id));
-    await admin.from("profiles").update({ jobs_refreshed_at: new Date().toISOString() }).eq("id", user.id);
+    await admin.from("profiles").update(search ? { jobs_searched_at: new Date().toISOString() } : { jobs_refreshed_at: new Date().toISOString() }).eq("id", user.id);
     searched = true;
   }
 
@@ -84,7 +95,7 @@ serve(async (req) => {
     }
   }
   let jobs: any[] = [...best.values()];
-  const usingDemo = jobs.length < 5;
+  const usingDemo = !search && jobs.length < 5; // sample jobs never show in search results
   if (usingDemo) {
     const { data: demo } = await admin.from("jobs").select("*").eq("active", true).eq("source", "demo");
     jobs = [...jobs, ...(demo ?? [])];
@@ -98,7 +109,24 @@ serve(async (req) => {
   const { data: existing } = await admin.from("job_matches").select("*").eq("user_id", user.id);
   const matchByJob = new Map((existing ?? []).map((m: any) => [m.job_id, m]));
 
-  const ranked = jobs.map((j) => {
+  // Search: only jobs that contain the words searched for, best text match first
+  const qTerms = search ? words(search.query) : [];
+  const qPlace = search?.where ? words(search.where) : [];
+  const searchScore = (j: any) => {
+    const hay = `${j.title} ${j.company}`.toLowerCase(), body = `${j.description ?? ""} ${(j.needs ?? []).join(" ")}`.toLowerCase();
+    let sc = 0;
+    if (hay.includes(search!.query.toLowerCase())) sc += 10; // the whole phrase in the title or company
+    qTerms.forEach((w) => { if (hay.includes(w)) sc += 4; else if (body.includes(w)) sc += 1; });
+    if (!sc) return 0;
+    if (qPlace.length && qPlace.some((w) => `${j.area} ${j.full_area ?? ""}`.toLowerCase().includes(w))) sc += 3;
+    if (qPlace.length && j.remote) sc += 1;
+    if (freshIds.has(j.id)) sc += 2;
+    return sc;
+  };
+
+  const ranked = search
+    ? jobs.map((j) => ({ j, rough: searchScore(j) })).filter((x) => x.rough > 0).sort((a, b) => b.rough - a.rough).slice(0, 40).map((x) => x.j)
+    : jobs.map((j) => {
     const title = words(j.title), desc = words(`${j.description ?? ""} ${(j.needs ?? []).join(" ")}`);
     let rough = 0;
     title.forEach((w) => { if (terms.has(w)) rough += 3; });
@@ -179,8 +207,10 @@ Write in plain, simple English. Reply with a JSON array only.`;
   const list = ranked
     .map((j) => ({ ...j, match: matchByJob.get(j.id) ?? null }))
     // If the AI could not score anything, still show the jobs (without chances) instead of an empty list
-    .filter((j) => (j.match ? j.match.score >= 20 : aiFailed && !matchByJob.size))
-    .sort((a, b) => (b.match?.score ?? -1) - (a.match?.score ?? -1) || String(b.posted_at).localeCompare(String(a.posted_at)));
+    // Searches show every matching job; the normal list hides very low chances
+    .filter((j) => (j.match ? (search || j.match.score >= 20) : (search || (aiFailed && !matchByJob.size))))
+    // Search results keep their best-text-match order; the normal list goes by chance of getting the job
+    .sort((a, b) => (search ? 0 : (b.match?.score ?? -1) - (a.match?.score ?? -1) || String(b.posted_at).localeCompare(String(a.posted_at))));
 
   return json({
     jobs: list,
@@ -191,5 +221,6 @@ Write in plain, simple English. Reply with a JSON array only.`;
     sources: { adzuna: adzunaConfigured(), jsearch: jsearchConfigured() },
     demo: usingDemo,
     ai_error: aiFailed,
+    search: search ? { ...search, where: search.where || homeArea, live: searched, too_soon: searchTooSoon } : null,
   });
 });

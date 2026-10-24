@@ -833,3 +833,5 @@ create policy "own cv uploads insert" on storage.objects for insert to authentic
 drop policy if exists "own cv uploads delete" on storage.objects;
 create policy "own cv uploads delete" on storage.objects for delete to authenticated
   using (bucket_id = 'cv-uploads' and (storage.foldername(name))[1] = auth.uid()::text);
+-- When the user last ran a live job search (limits Adzuna and JSearch calls from the search box)
+alter table public.profiles add column if not exists jobs_searched_at timestamptz;

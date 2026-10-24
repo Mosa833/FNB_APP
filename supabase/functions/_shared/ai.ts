@@ -56,16 +56,38 @@ async function tryModels(provider: string, models: string[], send: (model: strin
 // ---------- Groq (OpenAI-compatible chat completions) ----------
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
+// Models that think before answering. They are asked to think briefly so the answer is not cut off.
+const thinks = (m: string) => /gpt-oss|qwen3/i.test(m);
+
 async function groq(models: string[], system: string, messages: ChatMessage[], maxTokens: number) {
   const key = env("GROQ_API_KEY");
-  const { data, model } = await tryModels("Groq", models, (m) => fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: m, max_tokens: maxTokens, temperature: 0.3, messages: [{ role: "system", content: system }, ...messages] }),
-  }));
-  const text = String(data.choices?.[0]?.message?.content ?? "").trim();
-  if (!text) throw new AIError("Groq", `empty answer from ${model} (${data.choices?.[0]?.finish_reason ?? "no reason given"})`);
-  return { text, model };
+  const problems: string[] = [];
+  // One model at a time: an empty or cut-off answer moves on to the next model
+  for (const m of models) {
+    try {
+      const { data, model } = await tryModels("Groq", [m], (id) => fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: id,
+          max_tokens: thinks(id) ? maxTokens + 1500 : maxTokens, // room for the thinking as well as the answer
+          temperature: 0.3,
+          ...(thinks(id) ? { reasoning_effort: "low" } : {}),
+          messages: [{ role: "system", content: system }, ...messages],
+        }),
+      }));
+      const choice = data.choices?.[0];
+      const text = String(choice?.message?.content ?? "").trim();
+      if (text) return { text, model };
+      problems.push(`${model}: empty answer (${choice?.finish_reason ?? "no reason given"})`);
+    } catch (e) {
+      // A wrong key fails the same way on every model, so stop straight away
+      if (e instanceof AIError && /key rejected/.test(e.detail)) throw e;
+      problems.push(e instanceof AIError ? e.detail : String(e));
+    }
+  }
+  console.error("Groq: no model gave an answer", problems.join(" | "));
+  throw new AIError("Groq", `no model gave an answer: ${problems.join(" | ")}`);
 }
 
 // Interview questions, interview grading, skills test feedback.
@@ -76,7 +98,7 @@ export async function askGroq(system: string, prompt: string, maxTokens = 2000):
 }
 
 // Career coach chat
-export async function chatGroq(system: string, messages: ChatMessage[], maxTokens = 800): Promise<string> {
+export async function chatGroq(system: string, messages: ChatMessage[], maxTokens = 1200): Promise<string> {
   return (await groq(GROQ_CHAT_MODELS(), system, messages, maxTokens)).text;
 }
 
@@ -178,8 +200,12 @@ export function parseJSON<T>(text: string): T {
 }
 
 // ---------- Used by the ai-health check ----------
-export async function probeGroq(models: string[]) {
-  return (await groq(models, "Reply with the single word OK.", [{ role: "user", content: "Say OK" }], 400)).model;
+export async function probeGroq(models: string[], realistic = false) {
+  if (!realistic) return (await groq(models, "Reply with the single word OK.", [{ role: "user", content: "Say OK" }], 400)).model;
+  // A real coach-sized question, so a cut-off answer shows up here too
+  const { text, model } = await groq(models, "You are a friendly career coach for young South Africans. Answer in under 120 words.",
+    [{ role: "user", content: "I have Matric and no work experience. How do I write my first CV?" }], 1200);
+  return `${model} (${text.split(/\s+/).length} words)`;
 }
 export async function probeGemini() {
   const { model } = await gemini(GEMINI_TEXT_MODELS(), { contents: [{ role: "user", parts: [{ text: "Say OK" }] }], generationConfig: { maxOutputTokens: 20 } });
