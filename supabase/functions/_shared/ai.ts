@@ -137,6 +137,22 @@ export async function transcribe(audio: Blob, filename: string): Promise<string>
   return text; // empty is fine: it means nothing could be heard
 }
 
+// Reads a PDF or a photo of a document and returns its text (used for CV import)
+export async function readDocument(bytes: Uint8Array, mimeType: string): Promise<string> {
+  const { text } = await gemini(GEMINI_TEXT_MODELS(), {
+    contents: [{
+      parts: [
+        { inline_data: { mime_type: mimeType, data: encodeBase64(bytes) } },
+        { text: "This is a CV (resume). Copy out all of its text exactly as written, keeping headings and line breaks. " +
+            "Read tables and columns in a sensible order. Do not add comments, labels or anything that is not in the document. " +
+            "If there is no readable text, reply with nothing." },
+      ],
+    }],
+    generationConfig: { temperature: 0, maxOutputTokens: 8192 },
+  });
+  return text;
+}
+
 // Base64 without extra libraries, in chunks so long recordings don't overflow the stack
 export function encodeBase64(bytes: Uint8Array): string {
   let binary = "";

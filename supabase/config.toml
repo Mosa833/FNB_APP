@@ -34,3 +34,6 @@ verify_jwt = false
 
 [functions.ai-health]
 verify_jwt = false
+
+[functions.cv-import]
+verify_jwt = false

@@ -12,6 +12,7 @@ import { Assessments, TestQuestion, TestResult } from './src/screens/tests';
 import { Jobs, JobDetail, Course } from './src/screens/jobs';
 import { Grow, Mentorship, Guide, CoachChat, Locked, InterviewSetup, InterviewSession, InterviewResult } from './src/screens/grow';
 import { CVBuilder } from './src/screens/cv';
+import { CVImport } from './src/screens/cvimport';
 import { More, AccountDetails, Notifications, Privacy, Help } from './src/screens/more';
 
 const SCREENS = {
@@ -19,7 +20,7 @@ const SCREENS = {
   Home, Profile, EditProfile, EducationForm, EducationDetail, Skills, ExperienceForm, Languages, Preferences,
   Assessments, TestQuestion, TestResult,
   Jobs, JobDetail, Course,
-  Grow, Mentorship, Guide, CoachChat, Locked, CVBuilder, InterviewSetup, InterviewSession, InterviewResult,
+  Grow, Mentorship, Guide, CoachChat, Locked, CVBuilder, CVImport, InterviewSetup, InterviewSession, InterviewResult,
   More, AccountDetails, Notifications, Privacy, Help,
 };
 

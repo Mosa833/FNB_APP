@@ -217,3 +217,9 @@ export async function jobsByIds(ids) {
   if (!ids.length) return [];
   return check(await supabase.from('jobs').select('*').in('id', ids));
 }
+
+// ---------- CV import ----------
+// The CV must already be uploaded to the cv-uploads folder. Returns profile details for review; saves nothing.
+export async function importCv(path) {
+  return (await invoke('cv-import', { path })).profile;
+}

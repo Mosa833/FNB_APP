@@ -148,7 +148,7 @@ function TemplatePicker({ visible, selected, onPick, onClose }) {
 
 // ---------- CV builder ----------
 export function CVBuilder() {
-  const { data } = useApp();
+  const { data, navigate } = useApp();
   const [step, setStep] = useState(1);
   const [template, setTemplate] = useState('classic');
   const [picker, setPicker] = useState(false);
@@ -221,6 +221,9 @@ export function CVBuilder() {
       {step === 1 && (
         <>
           <Button title="Fill in from my profile" variant="outline" onPress={fillFromProfile} />
+          <Pressable onPress={() => navigate('CVImport')} hitSlop={6} style={{ alignSelf: 'center', marginTop: 4 }}>
+            <Text style={text.link}>Have a CV already? Upload it to fill your profile</Text>
+          </Pressable>
           <View style={{ height: 10 }} />
           <Field label="Full name" value={cv.name} onChangeText={set('name')} autoCapitalize="words" />
           <Field label="Headline" value={cv.headline} onChangeText={set('headline')} autoCapitalize="sentences" placeholder="e.g. IT student and phone repair technician" />

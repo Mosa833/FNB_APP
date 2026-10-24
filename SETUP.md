@@ -33,6 +33,7 @@ Option A, in the browser:
 4. Make a new query, paste `supabase/migrations/20261024000003_coach_and_guides.sql` and click Run.
 5. Make a new query, paste `supabase/migrations/20261024000004_live_jobs.sql` and click Run.
 6. Make a new query, paste `supabase/migrations/20261024000005_jsearch.sql` and click Run.
+7. Make a new query, paste `supabase/migrations/20261024000006_cv_import.sql` and click Run.
 
 Run them in this order.
 
@@ -104,6 +105,7 @@ What each function does:
 | jobs-for-me | Searches Adzuna and JSearch live for the user, removes duplicates and posts older than 30 days, adds company board jobs, and asks Gemini for the user's chance of getting each job |
 | jobs-sync | Pulls jobs from the Greenhouse and SmartRecruiters companies in `job_sources` (runs every 3 hours) |
 | test-feedback | Groq explains the questions the user got wrong in a skills test |
+| cv-import | Reads an uploaded CV (PDF, Word or photo) and returns profile details for the user to review. Gemini reads PDFs and photos, Groq picks out the details. The file is deleted straight after |
 | ai-health | Tests every key, AI model, job source and database update, and says what to fix |
 | career-coach | Career coach chat that knows the user's profile and the jobs they saved or applied for (40 messages per day) |
 | career-guide | Gemini writes a personal guide for a job they saved or applied for, or for a problem they describe (10 per day) |

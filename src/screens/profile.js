@@ -120,6 +120,15 @@ export function Profile() {
           />
         </View>
 
+        <Pressable style={st.cvCard} onPress={() => navigate(isGuest ? 'Locked' : 'CVImport', { feature: 'Filling your profile from a CV' })}>
+          <Ionicons name="cloud-upload-outline" size={22} color={colors.teal} />
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={text.h3}>Have a CV already?</Text>
+            <Text style={text.small}>Upload it and we'll fill in your profile for you.</Text>
+          </View>
+          <Ionicons name={isGuest ? 'lock-closed' : 'chevron-forward'} size={18} color={colors.muted} />
+        </Pressable>
+
         {missing.length > 0 && (
           <Card style={{ marginTop: 14 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -651,6 +660,7 @@ export function Preferences() {
 }
 
 const st = StyleSheet.create({
+  cvCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.tealLight, borderRadius: radius.md, padding: 14, marginTop: 14 },
   progressCard: { backgroundColor: colors.tealDark, borderRadius: radius.md, padding: 16, marginVertical: 6 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 10 },
   quick: { width: '48.5%', backgroundColor: colors.white, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: 14, marginBottom: 10, minHeight: 100, justifyContent: 'space-between' },
