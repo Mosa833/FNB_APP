@@ -8,12 +8,16 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
+<<<<<<< HEAD
       "bundleIdentifier": "com.skillbridge.app",
       "infoPlist": {
         "NSCameraUsageDescription": "SkillBridge shows your camera so you can see yourself during interview practice.",
         "NSMicrophoneUsageDescription": "SkillBridge records your voice during interview practice so it can give you feedback.",
         "NSPhotoLibraryUsageDescription": "SkillBridge lets you choose a profile photo and upload certificates."
       }
+=======
+      "bundleIdentifier": "com.skillbridge.app"
+>>>>>>> origin/main
     },
     "android": {
       "adaptiveIcon": {
@@ -22,11 +26,15 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+<<<<<<< HEAD
       "package": "com.skillbridge.app",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ]
+=======
+      "package": "com.skillbridge.app"
+>>>>>>> origin/main
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -34,6 +42,7 @@
     "plugins": [
       "expo-sharing",
       "expo-font",
+<<<<<<< HEAD
       "expo-asset",
       "expo-web-browser",
       [
@@ -60,3 +69,10 @@
     "scheme": "skillbridge"
   }
 }
+=======
+      "expo-asset"
+    ],
+    "backgroundColor": "#F3F5F4"
+  }
+}
+>>>>>>> origin/main

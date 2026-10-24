@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert, Image, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +29,38 @@ export function Home() {
   const hour = new Date().getHours();
   const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
   const first = isGuest ? 'there' : (data.profile.full_name || '').split(' ')[0] || 'there';
+=======
+import React, { useState } from 'react';
+import { View, Text, Pressable, StyleSheet, TextInput, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import { colors, radius } from '../theme';
+import { useApp, initials } from '../store';
+import { JOBS, SUGGESTED_SKILLS } from '../data';
+import { Screen, BackHeader, Button, Field, Select, Card, Chip, Progress, Avatar, Note, SectionTitle, text } from '../ui';
+
+export function profileProgress(profile) {
+  const n = profile.skills.length;
+  const hasEdu = profile.education.length > 0;
+  const hasVerified = profile.skills.some((s) => s.verified);
+  const hasCert = profile.education.some((e) => e.certificate);
+  const pct = Math.round(10 + (hasEdu ? 20 : 0) + Math.min(n, 6) * 7.5 + (hasVerified ? 10 : 0) + (hasCert ? 15 : 0));
+  let hint = 'Your profile is complete. Nice work.';
+  if (!hasEdu) hint = 'Add your education so employers know your level.';
+  else if (n < 6) hint = `Add ${6 - n} more skill${6 - n === 1 ? '' : 's'} to get better job matches.`;
+  else if (!hasVerified) hint = 'Pass a skills test to get your first verified badge.';
+  else if (!hasCert) hint = 'Upload a certificate to prove your education.';
+  return { pct: Math.min(100, pct), hint };
+}
+
+// 6. Home
+export function Home() {
+  const { user, isGuest, profile, navigate } = useApp();
+  const { pct, hint } = profileProgress(profile);
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const first = isGuest ? 'there' : user?.name?.split(' ')[0];
+>>>>>>> origin/main
   const quick = [
     { label: 'Take a skills test', icon: 'checkmark', go: 'Assessments' },
     { label: 'Find jobs', icon: 'search', go: 'Jobs' },
@@ -41,9 +74,13 @@ export function Home() {
           <Text style={text.muted}>{greet}</Text>
           <Text style={text.h2}>Hi {first}</Text>
         </View>
+<<<<<<< HEAD
         <Pressable onPress={() => navigate('Profile')}>
           <Avatar text={isGuest ? 'G' : initials(data.profile.full_name)} uri={data.profile.avatar_url} size={44} />
         </Pressable>
+=======
+        <Pressable onPress={() => navigate('Profile')}><Avatar text={isGuest ? 'G' : initials(user?.name)} size={44} /></Pressable>
+>>>>>>> origin/main
       </View>
 
       {isGuest && (
@@ -69,11 +106,19 @@ export function Home() {
       </View>
 
       <SectionTitle title="Top matches for you" action="See all" onAction={() => navigate('Jobs')} />
+<<<<<<< HEAD
       {jobs === null ? <Loading /> : jobs.slice(0, 2).map((j) => (
         <Card key={j.id} onPress={() => navigate('JobDetail', { job: j })} style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={{ flex: 1 }}>
             <Text style={text.h3}>{j.title}</Text>
             <Text style={text.small}>{j.area} · {j.distance_text}</Text>
+=======
+      {JOBS.slice(0, 2).map((j) => (
+        <Card key={j.id} onPress={() => navigate('JobDetail', { id: j.id })} style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={{ flex: 1 }}>
+            <Text style={text.h3}>{j.title}</Text>
+            <Text style={text.small}>{j.area} · {j.distance}</Text>
+>>>>>>> origin/main
           </View>
           <Chip label={`${j.match}%`} tone="verified" small />
         </Card>
@@ -84,12 +129,16 @@ export function Home() {
 
 // 7. Personal profile
 export function Profile() {
+<<<<<<< HEAD
   const { data, isGuest, navigate } = useApp();
   const p = data.profile;
   const { pct, items } = profileProgress(data);
   const missing = items.filter((i) => !i.done);
   const age = ageFrom(p.birth_year);
 
+=======
+  const { user, isGuest, profile, navigate } = useApp();
+>>>>>>> origin/main
   return (
     <Screen padded={false} style={{ paddingTop: 0 }}>
       <View style={st.profileHead}>
@@ -97,6 +146,7 @@ export function Profile() {
       </View>
       <View style={{ paddingHorizontal: 20 }}>
         <View style={st.profileCard}>
+<<<<<<< HEAD
           <Pressable onPress={() => navigate('EditProfile')} style={st.avatarRing} accessibilityLabel="Change profile photo">
             <Avatar text={isGuest ? 'G' : initials(p.full_name)} uri={p.avatar_url} size={72} />
             <View style={st.camBadge}><Ionicons name="camera" size={13} color={colors.white} /></View>
@@ -105,6 +155,13 @@ export function Profile() {
           {p.headline ? <Text style={[text.muted, { textAlign: 'center' }]}>{p.headline}</Text> : null}
           <Text style={[text.small, { marginTop: 2 }]}>{[p.location, age ? `Age ${age}` : null].filter(Boolean).join(' · ') || 'Add where you live'}</Text>
           {(p.phone || p.email) && !isGuest ? <Text style={[text.small, { marginTop: 2 }]}>{[p.phone, p.email].filter(Boolean).join(' · ')}</Text> : null}
+=======
+          <View style={{ marginTop: -40, borderWidth: 4, borderColor: colors.white, borderRadius: 40 }}>
+            <Avatar text={isGuest ? 'G' : initials(user?.name)} size={68} />
+          </View>
+          <Text style={[text.h2, { marginTop: 8 }]}>{isGuest ? 'Guest' : user?.name}</Text>
+          <Text style={text.small}>{isGuest ? 'Not saved' : `${user?.location} · Age ${user?.age}`}</Text>
+>>>>>>> origin/main
           <Button
             title={isGuest ? 'Create account to save' : 'Edit profile'}
             variant="outline"
@@ -113,6 +170,7 @@ export function Profile() {
           />
         </View>
 
+<<<<<<< HEAD
         {missing.length > 0 && (
           <Card style={{ marginTop: 14 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -157,10 +215,22 @@ export function Profile() {
             <Text style={text.h3}>{x.title}</Text>
             <Text style={text.small}>{[x.organisation, x.kind, [x.start_text, x.end_text].filter(Boolean).join(' to ')].filter(Boolean).join(' · ')}</Text>
             {x.description ? <Text style={[text.muted, { marginTop: 4 }]} numberOfLines={2}>{x.description}</Text> : null}
+=======
+        <SectionTitle title="Education" action="+ Add" onAction={() => navigate('AddEducation')} />
+        {profile.education.length === 0 && <Text style={text.muted}>No education added yet. Tap Add to start.</Text>}
+        {profile.education.map((e) => (
+          <Card key={e.id}>
+            <Text style={text.h3}>{e.title}</Text>
+            <Text style={text.small}>
+              {e.school ? `${e.school} · ` : ''}{e.end === 'Still studying' ? 'In progress' : `Completed ${e.end}`}
+              {e.certificate ? ' · Certificate added' : ''}
+            </Text>
+>>>>>>> origin/main
           </Card>
         ))}
 
         <SectionTitle title="My skills" action="Edit" onAction={() => navigate('Skills')} />
+<<<<<<< HEAD
         {data.skills.length === 0 && <Text style={text.muted}>No skills added yet.</Text>}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
           {data.skills.map((sk) => (
@@ -193,11 +263,21 @@ export function Profile() {
             {p.portfolio_url ? <Text style={text.link} onPress={() => WebBrowser.openBrowserAsync(p.portfolio_url)}>Portfolio or website</Text> : null}
           </>
         ) : null}
+=======
+        {profile.skills.length === 0 && <Text style={text.muted}>No skills added yet. Tap Edit to add some.</Text>}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+          {profile.skills.map((sk) => (
+            <Chip key={sk.name} label={sk.verified ? `${sk.name} ✓` : sk.name} tone={sk.verified ? 'verified' : 'default'} />
+          ))}
+        </View>
+        <Text style={text.small}>✓ = verified by a skills test</Text>
+>>>>>>> origin/main
       </View>
     </Screen>
   );
 }
 
+<<<<<<< HEAD
 // Edit profile: photo, name, headline, about, contact, location, links
 export function EditProfile() {
   const { data, uid, isGuest, updateProfile, goBack } = useApp();
@@ -265,10 +345,25 @@ export function EditProfile() {
       <Field label="Portfolio or website (optional)" value={f.portfolio_url} onChangeText={set('portfolio_url')} placeholder="Link to your work" keyboardType="url" />
       <ErrorNote message={error} />
       <Button title="Save" onPress={save} loading={busy} />
+=======
+export function EditProfile() {
+  const { user, updateUser, goBack } = useApp();
+  const [f, setF] = useState({ name: user.name, location: user.location, phone: user.phone || '', email: user.email || '' });
+  const set = (k) => (v) => setF({ ...f, [k]: v });
+  return (
+    <Screen>
+      <BackHeader title="Edit profile" />
+      <Field label="Full name" value={f.name} onChangeText={set('name')} autoCapitalize="words" />
+      <Field label="Where you live" value={f.location} onChangeText={set('location')} autoCapitalize="words" placeholder="e.g. Soweto, Gauteng" />
+      <Field label="Phone number" value={f.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
+      <Field label="Email" value={f.email} onChangeText={set('email')} keyboardType="email-address" />
+      <Button title="Save" onPress={() => { updateUser(f); goBack(); }} />
+>>>>>>> origin/main
     </Screen>
   );
 }
 
+<<<<<<< HEAD
 // 8. Add or edit education
 export function EducationForm() {
   const { data, uid, isGuest, saveRow, deleteRow, goBack, current } = useApp();
@@ -279,12 +374,22 @@ export function EducationForm() {
   });
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
+=======
+// 8. Add education
+const QUALS = ['Matric (Grade 12)', 'Certificate', 'Diploma', 'Degree', 'Short course', 'Learnership'];
+const YEARS = Array.from({ length: 15 }, (_, i) => String(new Date().getFullYear() - i));
+
+export function AddEducation() {
+  const { addEducation, goBack } = useApp();
+  const [f, setF] = useState({ qualification: 'Diploma', school: '', field: '', start: YEARS[2], end: 'Still studying', certificate: null });
+>>>>>>> origin/main
   const [error, setError] = useState('');
   const set = (k) => (v) => setF({ ...f, [k]: v });
 
   const pick = async () => {
     try {
       const res = await DocumentPicker.getDocumentAsync({ type: ['image/*', 'application/pdf'], copyToCacheDirectory: true });
+<<<<<<< HEAD
       if (!res.canceled && res.assets?.length) {
         const a = res.assets[0];
         if (a.size && a.size > 10 * 1024 * 1024) { setError('That file is bigger than 10 MB. Please choose a smaller one.'); return; }
@@ -346,10 +451,42 @@ export function EducationForm() {
       <ErrorNote message={error} />
       <Button title="Save" onPress={save} loading={busy} />
       {existing ? <Button title="Delete" variant="link" onPress={remove} /> : null}
+=======
+      if (!res.canceled && res.assets?.length) set('certificate')(res.assets[0].name);
+    } catch (e) {
+      Alert.alert('Upload failed', 'We could not open your files. Please try again.');
+    }
+  };
+
+  const save = () => {
+    if (!f.school.trim()) { setError('Please enter where you studied.'); return; }
+    const title = f.field ? `${f.qualification} in ${f.field}` : f.qualification;
+    addEducation({ ...f, title, school: f.school.trim() });
+    goBack();
+  };
+
+  return (
+    <Screen>
+      <BackHeader title="Add education" />
+      <Select label="Highest qualification" value={f.qualification} options={QUALS} onChange={set('qualification')} />
+      <Field label="School, college or university" value={f.school} onChangeText={(v) => { set('school')(v); setError(''); }} placeholder="e.g. Tshwane University of Technology" autoCapitalize="words" error={error} />
+      <Field label="Field of study" value={f.field} onChangeText={set('field')} placeholder="e.g. Information Technology" autoCapitalize="words" />
+      <View style={{ flexDirection: 'row' }}>
+        <View style={{ flex: 1, marginRight: 8 }}><Select label="Start year" value={f.start} options={YEARS} onChange={set('start')} /></View>
+        <View style={{ flex: 1, marginLeft: 8 }}><Select label="End year" value={f.end} options={['Still studying', ...YEARS]} onChange={set('end')} /></View>
+      </View>
+      <Text style={st.label}>Upload certificate (optional)</Text>
+      <Pressable style={st.upload} onPress={pick}>
+        <Text style={text.link}>{f.certificate ? `✓ ${f.certificate}` : '+ Upload photo or PDF'}</Text>
+      </Pressable>
+      <Note>Tip: Short courses and online certificates count too. Add them!</Note>
+      <Button title="Save" onPress={save} />
+>>>>>>> origin/main
     </Screen>
   );
 }
 
+<<<<<<< HEAD
 // Tapping an education opens this screen, with the certificate if there is one
 export function EducationDetail() {
   const { data, isGuest, navigate, current } = useApp();
@@ -431,10 +568,31 @@ export function Skills() {
   };
   const setLevel = async (sk, level) => { try { await saveRow('user_skills', { id: sk.id, level }); } catch (e) { setError(api.friendlyError(e)); } };
   const remove = async (sk) => { try { await deleteRow('user_skills', sk.id); } catch (e) { setError(api.friendlyError(e)); } };
+=======
+// 9. Skills
+const LEVELS = ['Beginner', 'Intermediate', 'Advanced'];
+const TEST_FOR_SKILL = { Excel: 'excel', 'Customer service': 'customer', 'Phone repair': 'phone', 'Digital literacy': 'digital' };
+
+export function Skills() {
+  const { profile, setSkills, goBack, navigate } = useApp();
+  const [list, setList] = useState(profile.skills);
+  const [query, setQuery] = useState('');
+
+  const add = (name) => {
+    const n = name.trim();
+    if (!n || list.some((s) => s.name.toLowerCase() === n.toLowerCase())) { setQuery(''); return; }
+    setList([...list, { name: n, level: 'Beginner', verified: false }]);
+    setQuery('');
+  };
+  const setLevel = (name, level) => setList(list.map((s) => (s.name === name ? { ...s, level } : s)));
+  const remove = (name) => setList(list.filter((s) => s.name !== name));
+  const suggestions = SUGGESTED_SKILLS.filter((s) => !list.some((x) => x.name === s));
+>>>>>>> origin/main
 
   return (
     <Screen>
       <BackHeader title="My skills" />
+<<<<<<< HEAD
       <AutocompleteField
         placeholder="Search or add a skill"
         value={query}
@@ -460,19 +618,50 @@ export function Skills() {
             <Text style={[text.h3, { flex: 1 }]}>{sk.name}</Text>
             <Chip small label={sk.verified ? 'Verified ✓' : 'Not tested'} tone={sk.verified ? 'verified' : 'amber'} />
             <Pressable onPress={() => remove(sk)} hitSlop={10} accessibilityLabel={`Remove ${sk.name}`}>
+=======
+      <View style={st.search}>
+        <Ionicons name="search" size={16} color={colors.muted} />
+        <TextInput
+          style={{ flex: 1, marginLeft: 8, fontSize: 15, color: colors.text }}
+          placeholder="Search or add a skill"
+          placeholderTextColor="#9AA6A4"
+          value={query}
+          onChangeText={setQuery}
+          onSubmitEditing={() => add(query)}
+          returnKeyType="done"
+        />
+        {query ? <Pressable onPress={() => add(query)} hitSlop={8}><Text style={text.link}>Add</Text></Pressable> : null}
+      </View>
+
+      <SectionTitle title={`Added (${list.length})`} />
+      {list.map((sk) => (
+        <Card key={sk.name}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+            <Text style={[text.h3, { flex: 1 }]}>{sk.name}</Text>
+            <Chip small label={sk.verified ? 'Verified ✓' : 'Not tested'} tone={sk.verified ? 'verified' : 'amber'} />
+            <Pressable onPress={() => remove(sk.name)} hitSlop={10} accessibilityLabel={`Remove ${sk.name}`}>
+>>>>>>> origin/main
               <Ionicons name="close" size={18} color={colors.muted} />
             </Pressable>
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+<<<<<<< HEAD
             {LEVELS.map((l) => <Chip key={l} label={l} active={sk.level === l} onPress={() => setLevel(sk, l)} small />)}
           </View>
           {!sk.verified && (
             <Pressable onPress={() => navigate('Assessments')} hitSlop={6}>
+=======
+            {LEVELS.map((l) => <Chip key={l} label={l} active={sk.level === l} onPress={() => setLevel(sk.name, l)} small />)}
+          </View>
+          {!sk.verified && TEST_FOR_SKILL[sk.name] && (
+            <Pressable onPress={() => { setSkills(list); navigate('Assessments'); }} hitSlop={6}>
+>>>>>>> origin/main
               <Text style={text.link}>Prove it: take the test</Text>
             </Pressable>
           )}
         </Card>
       ))}
+<<<<<<< HEAD
     </Screen>
   );
 }
@@ -639,6 +828,14 @@ export function Preferences() {
       </View>
       <ErrorNote message={error} />
       <Button title="Save" onPress={save} loading={busy} />
+=======
+
+      {suggestions.length > 0 && <SectionTitle title="Suggested for you" />}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        {suggestions.map((s) => <Chip key={s} label={`+ ${s}`} onPress={() => add(s)} />)}
+      </View>
+      <Button title="Save skills" onPress={() => { setSkills(list); goBack(); }} style={{ marginTop: 12 }} />
+>>>>>>> origin/main
     </Screen>
   );
 }
@@ -650,10 +847,16 @@ const st = StyleSheet.create({
   quickIcon: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   profileHead: { backgroundColor: colors.teal, height: 120, alignItems: 'center', paddingTop: 14 },
   profileCard: { backgroundColor: colors.white, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center', padding: 16, marginTop: -50 },
+<<<<<<< HEAD
   avatarRing: { marginTop: -46, borderWidth: 4, borderColor: colors.white, borderRadius: 44 },
   camBadge: { position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12, backgroundColor: colors.teal, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: colors.white },
   todo: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, borderTopWidth: 1, borderTopColor: colors.bg },
   label: { fontSize: 13, fontWeight: '600', color: colors.muted, marginBottom: 6 },
   upload: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, borderRadius: radius.sm, backgroundColor: colors.white, minHeight: 70, alignItems: 'center', justifyContent: 'center', padding: 10 },
   certBox: { height: 420, borderRadius: radius.md, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.white },
+=======
+  label: { fontSize: 13, fontWeight: '600', color: colors.muted, marginBottom: 6 },
+  upload: { borderWidth: 1.5, borderStyle: 'dashed', borderColor: colors.border, borderRadius: radius.sm, backgroundColor: colors.white, height: 70, alignItems: 'center', justifyContent: 'center' },
+  search: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: radius.sm, paddingHorizontal: 14, minHeight: 48 },
+>>>>>>> origin/main
 });

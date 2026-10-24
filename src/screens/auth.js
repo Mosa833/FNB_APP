@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+<<<<<<< HEAD
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
 import { colors, radius } from '../theme';
@@ -9,6 +10,11 @@ import { supabase, isConfigured } from '../lib/supabase';
 import * as api from '../lib/api';
 import { LocationField } from '../components/Autocomplete';
 import { Screen, BackHeader, Button, GoogleButton, Field, Divider, Note, Avatar, ErrorNote, text } from '../ui';
+=======
+import { colors, radius } from '../theme';
+import { useApp } from '../store';
+import { Screen, BackHeader, Button, GoogleButton, Field, Divider, Note, Avatar, text } from '../ui';
+>>>>>>> origin/main
 
 export function Logo({ size = 96 }) {
   const w = size * 0.6;
@@ -24,6 +30,7 @@ export function Logo({ size = 96 }) {
   );
 }
 
+<<<<<<< HEAD
 WebBrowser.maybeCompleteAuthSession();
 
 // Google sign in through Supabase. Needs the Google provider turned on in Supabase (see SETUP.md).
@@ -86,6 +93,19 @@ export function Splash() {
       if (!cancelled) reset(next);
     })();
     return () => { cancelled = true; clearInterval(d); };
+=======
+const googleNotice = () =>
+  Alert.alert('Google sign in', 'Google sign in needs a Google client ID before it can work. For now, please use the form.');
+
+// 1. Splash
+export function Splash() {
+  const { reset } = useApp();
+  const [dot, setDot] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => reset('Landing'), 2000);
+    const d = setInterval(() => setDot((x) => (x + 1) % 3), 450);
+    return () => { clearTimeout(t); clearInterval(d); };
+>>>>>>> origin/main
   }, []);
   return (
     <View style={{ flex: 1, backgroundColor: colors.tealDark, alignItems: 'center', justifyContent: 'center' }}>
@@ -101,6 +121,7 @@ export function Splash() {
   );
 }
 
+<<<<<<< HEAD
 // Shown only when the .env keys are missing
 export function Setup() {
   return (
@@ -117,11 +138,17 @@ export function Setup() {
   );
 }
 
+=======
+>>>>>>> origin/main
 // 2. Landing
 const SLIDES = [
   { title: 'Turn your skills into income', body: 'SkillBridge helps young people show what they can do and connect to real work.' },
   { title: 'Prove what you can do', body: 'Take short free tests. Every test you pass adds a verified badge employers can trust.' },
+<<<<<<< HEAD
   { title: 'Find work close to home', body: 'See jobs that match your skills before you apply.' },
+=======
+  { title: 'Find work close to home', body: 'See jobs that match your skills, with the travel cost shown before you apply.' },
+>>>>>>> origin/main
 ];
 
 export function Landing() {
@@ -167,6 +194,7 @@ export function Landing() {
 
 // 3. Register
 export function Register() {
+<<<<<<< HEAD
   const { startUserSession, reset, replace } = useApp();
   const [f, setF] = useState({ name: '', email: '', phone: '', username: '', password: '' });
   const [place, setPlace] = useState({ location: '', place_id: null });
@@ -225,16 +253,49 @@ export function Register() {
     );
   }
 
+=======
+  const { navigate, register, reset, replace } = useApp();
+  const [f, setF] = useState({ name: '', contact: '', username: '', password: '' });
+  const [agree, setAgree] = useState(false);
+  const [errors, setErrors] = useState({});
+  const set = (k) => (v) => setF({ ...f, [k]: v });
+
+  const submit = () => {
+    const e = {};
+    if (f.name.trim().split(' ').length < 2) e.name = 'Please enter your first name and surname.';
+    const isEmail = /^\S+@\S+\.\S+$/.test(f.contact.trim());
+    const isPhone = /^0\d{9}$/.test(f.contact.replace(/\s/g, ''));
+    if (!isEmail && !isPhone) e.contact = 'Enter a valid email or a 10 digit phone number.';
+    if (f.username.trim().length < 3) e.username = 'Username needs at least 3 characters.';
+    if (f.password.length < 8) e.password = 'Password needs at least 8 characters.';
+    if (!agree) e.agree = 'Please agree to the Terms and Privacy Policy.';
+    setErrors(e);
+    if (Object.keys(e).length) return;
+    register({
+      name: f.name.trim(),
+      username: f.username.trim(),
+      email: isEmail ? f.contact.trim() : '',
+      phone: isPhone ? f.contact.trim() : '',
+    });
+    reset('Home');
+  };
+
+>>>>>>> origin/main
   return (
     <Screen>
       <BackHeader />
       <Text style={text.h1}>Create your account</Text>
       <Text style={[text.muted, { marginBottom: 18 }]}>It's free and takes 1 minute.</Text>
       <Field label="Full name" value={f.name} onChangeText={set('name')} placeholder="e.g. Thabo Mokoena" autoCapitalize="words" error={errors.name} />
+<<<<<<< HEAD
       <Field label="Email" value={f.email} onChangeText={set('email')} placeholder="you@email.com" keyboardType="email-address" error={errors.email} />
       <Field label="Phone number (optional)" value={f.phone} onChangeText={set('phone')} placeholder="071 000 0000" keyboardType="phone-pad" error={errors.phone} />
       <Field label="Username" value={f.username} onChangeText={set('username')} placeholder="Choose a username" error={errors.username} />
       <LocationField value={place} onChange={setPlace} error={errors.location} />
+=======
+      <Field label="Email or phone number" value={f.contact} onChangeText={set('contact')} placeholder="you@email.com" keyboardType="email-address" error={errors.contact} />
+      <Field label="Username" value={f.username} onChangeText={set('username')} placeholder="Choose a username" error={errors.username} />
+>>>>>>> origin/main
       <Field label="Password" value={f.password} onChangeText={set('password')} placeholder="At least 8 characters" secure error={errors.password} />
       <Pressable style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }} onPress={() => setAgree(!agree)}>
         <View style={[st.check, agree && { backgroundColor: colors.teal, borderColor: colors.teal }]}>
@@ -243,10 +304,16 @@ export function Register() {
         <Text style={text.body}>I agree to the Terms and Privacy Policy</Text>
       </Pressable>
       {errors.agree ? <Text style={{ color: colors.red, fontSize: 12, marginBottom: 6 }}>{errors.agree}</Text> : null}
+<<<<<<< HEAD
       <ErrorNote message={serverError} />
       <Button title="Sign up" onPress={submit} loading={busy} style={{ marginTop: 10 }} />
       <Divider />
       <GoogleButton title={googleBusy ? 'Opening Google...' : 'Sign up with Google'} onPress={google} />
+=======
+      <Button title="Sign up" onPress={submit} style={{ marginTop: 10 }} />
+      <Divider />
+      <GoogleButton title="Sign up with Google" onPress={googleNotice} />
+>>>>>>> origin/main
       <Text style={[text.body, { textAlign: 'center', marginTop: 12 }]}>
         Already have an account? <Text style={text.link} onPress={() => replace('Login')}>Log in</Text>
       </Text>
@@ -256,6 +323,7 @@ export function Register() {
 
 // 4. Login
 export function Login() {
+<<<<<<< HEAD
   const { navigate, startUserSession, continueAsGuest, reset, replace } = useApp();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -280,11 +348,26 @@ export function Login() {
     }
   };
 
+=======
+  const { navigate, login, continueAsGuest, reset, replace } = useApp();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const submit = () => {
+    if (!username.trim() || password.length < 8) {
+      setError('Check your username and password. Passwords have at least 8 characters.');
+      return;
+    }
+    login(username.trim());
+    reset('Home');
+  };
+>>>>>>> origin/main
   return (
     <Screen>
       <BackHeader />
       <Text style={text.h1}>Welcome back</Text>
       <Text style={[text.muted, { marginBottom: 18 }]}>Log in to see your matches and progress.</Text>
+<<<<<<< HEAD
       <Field label="Username or email" value={identifier} onChangeText={setIdentifier} placeholder="thabo_m" />
       <Field label="Password" value={password} onChangeText={setPassword} placeholder="Your password" secure />
       <ErrorNote message={error} />
@@ -294,6 +377,16 @@ export function Login() {
       <Button title="Log in" onPress={submit} loading={busy} />
       <Divider />
       <GoogleButton title={googleBusy ? 'Opening Google...' : 'Continue with Google'} onPress={google} />
+=======
+      <Field label="Username or email" value={username} onChangeText={setUsername} placeholder="thabo_m" />
+      <Field label="Password" value={password} onChangeText={setPassword} placeholder="Your password" secure error={error} />
+      <Pressable onPress={() => navigate('Forgot')} style={{ alignSelf: 'flex-end', marginBottom: 12 }} hitSlop={8}>
+        <Text style={text.link}>Forgot username or password?</Text>
+      </Pressable>
+      <Button title="Log in" onPress={submit} />
+      <Divider />
+      <GoogleButton title="Continue with Google" onPress={googleNotice} />
+>>>>>>> origin/main
       <Pressable style={st.guestBox} onPress={() => { continueAsGuest(); reset('Home'); }}>
         <Text style={[text.link, { fontSize: 16 }]}>Continue as guest</Text>
         <Text style={[text.small, { textAlign: 'center', marginTop: 4 }]}>Look around first. Some features are limited for guests.</Text>
@@ -307,6 +400,7 @@ export function Login() {
 
 // 5. Forgot username or password
 export function Forgot() {
+<<<<<<< HEAD
   const { startUserSession, reset } = useApp();
   const [tab, setTab] = useState('Password');
   const [email, setEmail] = useState('');
@@ -349,6 +443,17 @@ export function Forgot() {
     }
   };
 
+=======
+  const [tab, setTab] = useState('Password');
+  const [contact, setContact] = useState('');
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+  const send = () => {
+    const ok = /^\S+@\S+\.\S+$/.test(contact.trim()) || /^0\d{9}$/.test(contact.replace(/\s/g, ''));
+    if (!ok) { setError('Enter the email or phone number on your account.'); return; }
+    setError(''); setSent(true);
+  };
+>>>>>>> origin/main
   return (
     <Screen>
       <BackHeader />
@@ -357,11 +462,16 @@ export function Forgot() {
       <Text style={[text.muted, { marginBottom: 18 }]}>No stress. Tell us what you forgot and we'll help you get back in.</Text>
       <View style={st.segment}>
         {['Password', 'Username'].map((t) => (
+<<<<<<< HEAD
           <Pressable key={t} onPress={() => { setTab(t); setError(''); }} style={[st.segItem, tab === t && st.segActive]}>
+=======
+          <Pressable key={t} onPress={() => { setTab(t); setSent(false); }} style={[st.segItem, tab === t && st.segActive]}>
+>>>>>>> origin/main
             <Text style={{ fontWeight: '700', color: tab === t ? colors.text : colors.muted }}>{t}</Text>
           </Pressable>
         ))}
       </View>
+<<<<<<< HEAD
 
       {tab === 'Username' ? (
         <>
@@ -384,6 +494,14 @@ export function Forgot() {
           <Button title="Save new password" onPress={setNewPassword} loading={busy} />
           <Button title="Send a new code" variant="link" onPress={() => { setStep('email'); setCode(''); }} />
         </>
+=======
+      <Field label="Email or phone number" value={contact} onChangeText={(v) => { setContact(v); setSent(false); }} placeholder="thabo@email.com" keyboardType="email-address" error={error} />
+      <Button title={tab === 'Password' ? 'Send reset link' : 'Send my username'} onPress={send} />
+      {sent ? (
+        <Note>{tab === 'Password' ? 'Reset link sent.' : 'Username sent.'} Check your email or SMS. It can take a few minutes.</Note>
+      ) : (
+        <Note>We'll send a link to your email or an SMS code to your phone. Check your spam folder if you don't see it.</Note>
+>>>>>>> origin/main
       )}
     </Screen>
   );
