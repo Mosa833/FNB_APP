@@ -1,0 +1,24 @@
+# Only the settings SkillBridge needs. Run `supabase link` to connect this folder to your project.
+project_id = "skillbridge"
+
+# Each function checks the user itself, so the gateway check is turned off.
+[functions.places-autocomplete]
+verify_jwt = false
+
+[functions.generate-test]
+verify_jwt = false
+
+[functions.interview-start]
+verify_jwt = false
+
+[functions.interview-grade]
+verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = false
+
+[functions.career-coach]
+verify_jwt = false
+
+[functions.career-guide]
+verify_jwt = false

@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "SkillBridge",
+    "slug": "skillbridge",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.skillbridge.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "SkillBridge shows your camera so you can see yourself during interview practice.",
+        "NSMicrophoneUsageDescription": "SkillBridge records your voice during interview practice so it can give you feedback.",
+        "NSPhotoLibraryUsageDescription": "SkillBridge lets you choose a profile photo and upload certificates."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0A4D45",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.skillbridge.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-sharing",
+      "expo-font",
+      "expo-asset",
+      "expo-web-browser",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "SkillBridge records your voice during interview practice so it can give you feedback."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "SkillBridge shows your camera so you can see yourself during interview practice.",
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "SkillBridge lets you choose a profile photo."
+        }
+      ]
+    ],
+    "backgroundColor": "#F3F5F4",
+    "scheme": "skillbridge"
+  }
+}
