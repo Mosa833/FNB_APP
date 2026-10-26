@@ -42,5 +42,27 @@ serve(async (req) => {
   await admin.from("jobs").update({ active: false }).in("source", ["adzuna", "jsearch"]).lt("last_seen_at", twoWeeks);
   await admin.from("jobs").update({ active: false }).neq("source", "demo").lt("posted_at", old);
 
-  return json({ ok: true, sources: report });
+  // Dead link check: reported jobs first, then the ones checked longest ago. Gone (404 or 410) = closed.
+  const { data: reported } = await admin.from("job_reports").select("job_id").in("reason", ["broken_link", "closed"]).limit(200);
+  const reportedIds = [...new Set((reported ?? []).map((r) => r.job_id))].slice(0, 20);
+  const { data: firstCheck } = reportedIds.length
+    ? await admin.from("jobs").select("id, url").in("id", reportedIds).eq("active", true).not("url", "is", null)
+    : { data: [] as { id: string; url: string }[] };
+  const { data: oldest } = await admin.from("jobs").select("id, url").eq("active", true).neq("source", "demo").not("url", "is", null)
+    .order("link_checked_at", { ascending: true, nullsFirst: true }).limit(40);
+  const toCheck = [...new Map([...(firstCheck ?? []), ...(oldest ?? [])].map((j) => [j.id, j])).values()].slice(0, 40);
+  let closed = 0;
+  const check = async (j: { id: string; url: string }) => {
+    let gone = false;
+    try {
+      const r = await fetch(j.url, { redirect: "follow", signal: AbortSignal.timeout(8000), headers: { "User-Agent": "SkillBridge link check" } });
+      gone = r.status === 404 || r.status === 410;
+      await r.body?.cancel();
+    } catch { /* timeouts and network errors don't close a job */ }
+    await admin.from("jobs").update(gone ? { active: false, link_checked_at: new Date().toISOString() } : { link_checked_at: new Date().toISOString() }).eq("id", j.id);
+    if (gone) closed++;
+  };
+  for (let i = 0; i < toCheck.length; i += 8) await Promise.all(toCheck.slice(i, i + 8).map(check));
+
+  return json({ ok: true, sources: report, links_checked: toCheck.length, closed_because_link_gone: closed });
 });

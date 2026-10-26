@@ -81,6 +81,7 @@ serve(async (req) => {
     ["Database: live jobs and match scores", "job_matches", "score", "20261024000004_live_jobs.sql"],
     ["Database: test feedback", "test_attempts", "feedback", "20261024000004_live_jobs.sql"],
     ["Database: JSearch columns", "jobs", "publisher, apply_direct, dedupe_key", "20261024000005_jsearch.sql"],
+    ["Database: badges, reports and fairness test", "endorsements", "id, status", "20261024000008_mentor_feedback.sql"],
   ]) {
     const { error } = await admin.from(table).select(cols).limit(1);
     results.push({ check, ok: !error, detail: error ? error.message : "in place", fix: error ? `Run supabase/migrations/${file} in the SQL Editor` : undefined });

@@ -37,3 +37,15 @@ verify_jwt = false
 
 [functions.cv-import]
 verify_jwt = false
+
+[functions.bias-check]
+verify_jwt = false
+
+[functions.practical-task]
+verify_jwt = false
+
+[functions.endorse]
+verify_jwt = false
+
+[functions.export-data]
+verify_jwt = false

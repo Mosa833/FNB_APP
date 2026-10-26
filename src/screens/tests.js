@@ -5,6 +5,7 @@ import { colors, radius } from '../theme';
 import { useApp } from '../store';
 import * as api from '../lib/api';
 import { Screen, BackHeader, Button, Card, Chip, Progress, Note, ErrorNote, Loading, text } from '../ui';
+import { BadgeRow } from '../components/Badges';
 
 const PASS_MARK = 70;
 const findTest = (tests, skill) => tests.find((t) => t.skill.toLowerCase() === skill.toLowerCase());
@@ -41,7 +42,8 @@ export function Assessments() {
     <Screen>
       <BackHeader />
       <Text style={text.h1}>Skills assessment</Text>
-      <Text style={[text.muted, { marginBottom: 12 }]}>Tests for the skills on your profile. Pass with {PASS_MARK}% or more to add a verified badge.</Text>
+      <Text style={[text.muted, { marginBottom: 8 }]}>Tests for the skills on your profile. Pass with {PASS_MARK}% or more to earn the Tested badge.</Text>
+      <Note style={{ marginTop: 0 }}>A test checks what you know, not whether you can do the work. After passing, add a practical task or an endorsement for stronger proof.</Note>
       {isGuest && <Note tone="amber">As a guest you can take tests, but badges are only saved when you have an account.</Note>}
       <ErrorNote message={error} onRetry={load} />
 
@@ -62,19 +64,22 @@ export function Assessments() {
               </View>
               {sk.verified ? (
                 <>
-                  <Text style={[text.small, { marginTop: 4 }]}>Verified badge added ✓</Text>
-                  {t ? <Pressable onPress={() => navigate('TestQuestion', { test: t })} hitSlop={6}><Text style={[text.link, { marginTop: 6 }]}>Retake test</Text></Pressable> : null}
+                  <BadgeRow skill={sk} />
+                  <View style={{ flexDirection: 'row', marginTop: 8 }}>
+                    {!isGuest ? <Pressable onPress={() => navigate('SkillBadges', { skillId: sk.id })} hitSlop={6} style={{ marginRight: 18 }}><Text style={text.link}>Add stronger proof</Text></Pressable> : null}
+                    {t ? <Pressable onPress={() => navigate('TestQuestion', { test: t })} hitSlop={6}><Text style={text.link}>Retake test</Text></Pressable> : null}
+                  </View>
                 </>
               ) : t ? (
                 <>
-                  <Text style={[text.small, { marginTop: 4 }]}>{t.extra ? `${t.extra} · ` : ''}{t.question_count} questions · about {t.minutes} min</Text>
+                  <Text style={[text.small, { marginTop: 4 }]}>{t.extra ? `${t.extra} · ` : ''}{Math.min(8, t.question_count)} random questions · about {t.minutes} min</Text>
                   <Button title="Start test" onPress={() => navigate('TestQuestion', { test: t })} style={{ minHeight: 42, marginTop: 10 }} />
                 </>
               ) : isGuest ? (
                 <Text style={[text.small, { marginTop: 4 }]}>Create a free account and we'll make a test for this skill.</Text>
               ) : (
                 <>
-                  <Text style={[text.small, { marginTop: 4 }]}>We can make a short 8 question test for this skill. It takes about 20 seconds.</Text>
+                  <Text style={[text.small, { marginTop: 4 }]}>We can make a test for this skill. Each attempt gets 8 random questions. It takes about 30 seconds to make.</Text>
                   <Button title={creating === sk.name ? 'Creating your test...' : 'Create my test'} variant="outline" loading={creating === sk.name} disabled={Boolean(creating)} onPress={() => create(sk)} style={{ minHeight: 42, marginTop: 10 }} />
                 </>
               )}
@@ -96,11 +101,14 @@ export function TestQuestion() {
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [secondsLeft, setSecondsLeft] = useState(test.minutes * 60);
+  const attempt = useRef(null);
   const [submitting, setSubmitting] = useState(false);
   const done = useRef(false);
 
   useEffect(() => {
-    api.fetchQuestions(test.id).then(setQuestions).catch((e) => setError(api.friendlyError(e)));
+    api.startTest(test.id)
+      .then((r) => { attempt.current = r.attempt_id; setSecondsLeft((r.minutes || test.minutes) * 60); setQuestions(r.questions || []); })
+      .catch((e) => setError(api.friendlyError(e)));
   }, []);
 
   const finish = async (finalAnswers) => {
@@ -108,7 +116,7 @@ export function TestQuestion() {
     done.current = true;
     setSubmitting(true);
     try {
-      const result = await api.submitTest(test.id, questions.map((_, i) => (finalAnswers[i] ?? -1)));
+      const result = await api.submitAttempt(attempt.current, questions.map((q) => q.id), questions.map((_, i) => (finalAnswers[i] ?? -1)));
       if (!isGuest) await reload();
       replace('TestResult', { test, result });
     } catch (e) {
@@ -192,6 +200,8 @@ export function TestResult() {
     api.testFeedback(result.attempt_id).then((f) => { setFeedback(f); setFbState('done'); }).catch(() => setFbState('error'));
   };
   useEffect(() => { if (result.attempt_id && !isGuest) loadFeedback(); }, []);
+  const { data } = useApp();
+  const skillId = data.skills.find((s) => s.name.toLowerCase() === String(test.skill || '').toLowerCase())?.id;
   const whyFor = (q) => feedback?.questions?.find((x) => x.question?.trim().toLowerCase() === q.trim().toLowerCase())?.why;
 
   return (
@@ -208,8 +218,9 @@ export function TestResult() {
         <Card style={{ marginTop: 20 }}>
           <Text style={[text.h3, { color: colors.teal }]}>✓ Verified badge added</Text>
           <Text style={[text.muted, { marginTop: 4 }]}>
-            Employers can now see that you passed this test. Your job chances will update the next time you open Jobs.
+            Employers can now see that you passed this test. Your job matches update the next time you open Jobs.
           </Text>
+          <Text style={[text.small, { marginTop: 8 }]}>A test shows what you know. A practical task or an endorsement shows you can do the work, and counts more with employers.</Text>
         </Card>
       )}
       {result.passed && !result.saved && (
@@ -218,7 +229,9 @@ export function TestResult() {
       {!result.passed && (
         <Card style={{ marginTop: 20 }}>
           <Text style={text.h3}>You need {PASS_MARK}% to pass</Text>
-          <Text style={[text.muted, { marginTop: 4 }]}>Look at the answers below, then try again when you're ready.</Text>
+          <Text style={[text.muted, { marginTop: 4 }]}>
+            Look at the answers below.{result.saved && result.retry_hours ? ` You can try again in ${result.retry_hours} hours, with different questions.` : ' Then try again when you are ready.'}
+          </Text>
         </Card>
       )}
 
@@ -256,9 +269,10 @@ export function TestResult() {
         </Card>
       )}
 
-      {result.passed && result.saved && <Button title="See my jobs" onPress={() => reset('Jobs')} />}
+      {result.passed && result.saved && skillId ? <Button title="Add stronger proof" onPress={() => replace('SkillBadges', { skillId })} /> : null}
+      {result.passed && result.saved && <Button title="See my jobs" variant={skillId ? 'outline' : 'primary'} onPress={() => reset('Jobs')} />}
       {result.passed && !result.saved && <Button title="Create free account" onPress={() => navigate('Register')} />}
-      {!result.passed && <Button title="Try again" onPress={() => replace('TestQuestion', { test })} />}
+      {!result.passed && !(result.saved && result.retry_hours) && <Button title="Try again" onPress={() => replace('TestQuestion', { test })} />}
       <Button title="Back to tests" variant="outline" onPress={() => replace('Assessments')} />
     </Screen>
   );

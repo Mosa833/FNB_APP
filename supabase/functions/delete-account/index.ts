@@ -17,7 +17,7 @@ serve(async (req) => {
   const admin = adminClient();
   const user = await requireUser(req, admin);
 
-  for (const bucket of ["avatars", "certificates", "interview-audio", "cv-uploads"]) {
+  for (const bucket of ["avatars", "certificates", "interview-audio", "cv-uploads", "skill-evidence"]) {
     const paths = await listAll(admin, bucket, user.id);
     for (let i = 0; i < paths.length; i += 100) {
       await admin.storage.from(bucket).remove(paths.slice(i, i + 100));

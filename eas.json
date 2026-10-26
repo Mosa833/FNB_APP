@@ -1,0 +1,35 @@
+{
+    "cli":  {
+                "version":  "\u003e= 16.0.0",
+                "appVersionSource":  "remote"
+            },
+    "build":  {
+                  "preview":  {
+                                  "distribution":  "internal",
+                                  "android":  {
+                                                  "buildType":  "apk"
+                                              },
+                                  "ios":  {
+                                              "simulator":  false
+                                          },
+                                  "env":  {
+                                              "EXPO_PUBLIC_SUPABASE_URL":  "https://lgjldxmgxjssmhmzobtq.supabase.co",
+                                              "EXPO_PUBLIC_SUPABASE_KEY":  "sb_publishable_DFAN1I53eK8hSD-sSl0_2g_fIw5HwTm",
+                                              "EXPO_PUBLIC_ENDORSE_URL":  "https://euphonious-kleicha-aaa023.netlify.app/endorse.html"
+                                          }
+                              },
+                  "production":  {
+                                     "autoIncrement":  true,
+                                     "env":  {
+                                                 "EXPO_PUBLIC_SUPABASE_URL":  "https://lgjldxmgxjssmhmzobtq.supabase.co",
+                                                 "EXPO_PUBLIC_SUPABASE_KEY":  "sb_publishable_DFAN1I53eK8hSD-sSl0_2g_fIw5HwTm",
+                                                 "EXPO_PUBLIC_ENDORSE_URL":  "https://euphonious-kleicha-aaa023.netlify.app/endorse.html"
+                                             }
+                                 }
+              },
+    "submit":  {
+                   "production":  {
+
+                                  }
+               }
+}

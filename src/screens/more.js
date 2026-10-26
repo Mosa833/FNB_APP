@@ -5,6 +5,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius } from '../theme';
 import { useApp } from '../store';
 import * as api from '../lib/api';
+import { File, Paths } from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { Screen, BackHeader, Button, Field, Card, ErrorNote, text } from '../ui';
 
 // 21. More: logout and delete account
@@ -124,27 +126,99 @@ export function Notifications() {
   );
 }
 
+// Roughly how much mobile data each feature uses, so people can plan
+const DATA_USE = [
+  ['Opening the app and Jobs', 'Under 1 MB'],
+  // iPhone records 16 kHz mono WAV (32 KB a second); Android records 32 kbps AAC (4 KB a second)
+  ['Interview practice, recorded on iPhone', 'About 2 MB per minute of answers'],
+  ['Interview practice, recorded on Android', 'About 0.25 MB per minute of answers'],
+  ['Interview practice, typed (data saver)', 'Under 0.5 MB per session'],
+  ['Practical task photo', 'About 1 MB per photo'],
+  ['Career coach message', 'Almost nothing'],
+];
+
+// What SkillBridge keeps and why, in plain words (POPIA)
+const NOTICE = [
+  ['What we keep', 'Your account details, your profile (skills, education, experience, languages, the work you want), test results, interview practice answers and feedback, coach messages, and jobs you save or apply for.'],
+  ['Why', 'To show you jobs that fit, give you feedback, and build your CV. We never sell your information or show you adverts.'],
+  ['Who sees it', 'Only you. Employers only see your profile if "Show my profile to employers" is on. AI services (Google Gemini and Groq) process your answers and CV to give feedback; they get no name or ID number.'],
+  ['CVs and recordings', 'An uploaded CV is deleted as soon as it has been read. Interview recordings are only used to give you feedback.'],
+  ['Your rights', 'You can see and download your information below, change it in your profile, and delete your account and everything in it from the More tab.'],
+  ['Questions or complaints', 'Contact the SkillBridge information officer (the team lead) through Help and support. You can also complain to the Information Regulator (inforegulator.org.za).'],
+];
+
 export function Privacy() {
-  const { data, isGuest, updateProfile } = useApp();
+  const { data, isGuest, updateProfile, dataSaver, setDataSaver } = useApp();
   const [visible, setVisible] = useState(data.profile.visible_to_employers !== false);
   const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
+
   const toggle = async (v) => {
     setVisible(v);
     if (isGuest) return;
     try { await updateProfile({ visible_to_employers: v }); } catch (e) { setVisible(!v); setError(api.friendlyError(e)); }
   };
+
+  const download = async () => {
+    try {
+      setExporting(true);
+      const all = await api.exportMyData();
+      const f = new File(Paths.cache, 'skillbridge-my-data.json');
+      try { f.create({ overwrite: true }); } catch {}
+      await f.write(JSON.stringify(all, null, 2));
+      if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(f.uri, { mimeType: 'application/json', dialogTitle: 'Save your SkillBridge data' });
+      else Alert.alert('Your data is ready', f.uri);
+    } catch (e) {
+      Alert.alert('Could not download your data', api.friendlyError(e));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <Screen>
       <BackHeader title="Privacy and data" />
+
       <View style={st.row}>
         <View style={{ flex: 1 }}>
-          <Text style={text.body}>Show my profile to employers</Text>
-          <Text style={text.small}>Your name, skills, badges and experience. Never your ID number.</Text>
+          <Text style={text.body}>Data saver</Text>
+          <Text style={text.small}>No camera preview or photos, and interview answers are typed instead of recorded.</Text>
         </View>
-        <Switch value={visible} onValueChange={toggle} trackColor={{ true: colors.teal, false: colors.border }} thumbColor={colors.white} />
+        <Switch value={dataSaver} onValueChange={setDataSaver} trackColor={{ true: colors.teal, false: colors.border }} thumbColor={colors.white} accessibilityLabel="Data saver" />
       </View>
+
+      {!isGuest && (
+        <View style={st.row}>
+          <View style={{ flex: 1 }}>
+            <Text style={text.body}>Show my profile to employers</Text>
+            <Text style={text.small}>Your name, skills, badges and experience. Never your ID number.</Text>
+          </View>
+          <Switch value={visible} onValueChange={toggle} trackColor={{ true: colors.teal, false: colors.border }} thumbColor={colors.white} accessibilityLabel="Show my profile to employers" />
+        </View>
+      )}
       <ErrorNote message={error} />
-      <Text style={[text.muted, { marginTop: 16 }]}>We follow the Protection of Personal Information Act (POPIA). We never sell your data. Interview recordings are only used to give you feedback. You can delete your account and everything in it at any time from the More tab.</Text>
+
+      <Text style={[text.h3, { marginTop: 16, marginBottom: 6 }]}>How much data each feature uses</Text>
+      <Card>
+        {DATA_USE.map(([what, how]) => (
+          <View key={what} style={{ flexDirection: 'row', paddingVertical: 6 }}>
+            <Text style={[text.body, { flex: 1 }]}>{what}</Text>
+            <Text style={[text.body, { fontWeight: '700' }]}>{how}</Text>
+          </View>
+        ))}
+        <Text style={[text.small, { marginTop: 4 }]}>Rough amounts. Wi-Fi uses none of your mobile data.</Text>
+      </Card>
+
+      <Text style={[text.h3, { marginTop: 10, marginBottom: 6 }]}>How we use your information</Text>
+      {NOTICE.map(([t, b]) => (
+        <View key={t} style={{ marginBottom: 10 }}>
+          <Text style={[text.body, { fontWeight: '700' }]}>{t}</Text>
+          <Text style={text.muted}>{b}</Text>
+        </View>
+      ))}
+      <Text style={text.small}>SkillBridge follows the Protection of Personal Information Act (POPIA).</Text>
+
+      {!isGuest && <Button title={exporting ? 'Preparing your data...' : 'Download my data'} variant="outline" onPress={download} disabled={exporting} style={{ marginTop: 14 }} />}
     </Screen>
   );
 }

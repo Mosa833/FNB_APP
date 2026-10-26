@@ -1,8 +1,8 @@
-// Turns each recorded answer into text, then grades the whole session with feedback and better wording.
+// Turns each recorded answer into text (typed answers are used as they are), then grades the whole session with feedback and better wording.
 import { serve, json, adminClient, requireUser, HttpError } from "../_shared/common.ts";
 import { askGroq, parseJSON, transcribe } from "../_shared/ai.ts";
 
-type AnswerIn = { position: number; audio_path: string; duration_seconds: number };
+type AnswerIn = { position: number; audio_path?: string; text?: string; duration_seconds: number };
 type Graded = {
   overall_score: number;
   summary: string;
@@ -28,6 +28,8 @@ serve(async (req) => {
     // 1. Speech to text, all answers at the same time
     const transcripts = await Promise.all(
       answers.map(async (a) => {
+        // Data saver: typed answers need no recording or transcription
+        if (typeof a.text === "string") return a.text.slice(0, 3000);
         if (!a.audio_path?.startsWith(`${user.id}/${session_id}/`)) return "";
         const { data: file, error } = await admin.storage.from("interview-audio").download(a.audio_path);
         if (error || !file) return "";
@@ -40,6 +42,7 @@ serve(async (req) => {
       question: questions[a.position - 1] ?? "",
       seconds: Math.round(a.duration_seconds || 0),
       transcript: transcripts[i],
+      typed: typeof a.text === "string",
     }));
 
     // 2. Grade everything in one request
@@ -50,7 +53,9 @@ serve(async (req) => {
     const prompt =
       `Job: ${session.job_type}. Question type: ${session.question_type}. Answer time allowed: ${session.answer_seconds} seconds.\n\n` +
       items
-        .map((it) => `Question ${it.position}: ${it.question}\nSpoke for ${it.seconds} seconds.\nWhat they said: ${it.transcript || "(nothing could be heard)"}`)
+        .map((it) => it.typed
+          ? `Question ${it.position}: ${it.question}\nTyped their answer (data saver mode, so judge the content, not speaking).\nWhat they wrote: ${it.transcript || "(no answer)"}`
+          : `Question ${it.position}: ${it.question}\nSpoke for ${it.seconds} seconds.\nWhat they said: ${it.transcript || "(nothing could be heard)"}`)
         .join("\n\n") +
       `\n\nFor each answer give:\n` +
       `- score from 0 to 100 (relevance, clear example, structure like situation, action and result, confidence, length)\n` +

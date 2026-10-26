@@ -159,6 +159,17 @@ export async function transcribe(audio: Blob, filename: string): Promise<string>
   return text; // empty is fine: it means nothing could be heard
 }
 
+// Gemini looks at a file (photo or PDF) with instructions, for example to check practical task evidence
+export async function askGeminiWithFile(system: string, prompt: string, bytes: Uint8Array, mimeType: string, opts: { json?: boolean } = {}): Promise<string> {
+  const { text, model, finish } = await gemini(GEMINI_TEXT_MODELS(), {
+    systemInstruction: { parts: [{ text: system }] },
+    contents: [{ role: "user", parts: [{ inline_data: { mime_type: mimeType, data: encodeBase64(bytes) } }, { text: prompt }] }],
+    generationConfig: { temperature: 0.1, maxOutputTokens: 4096, ...(opts.json ? { responseMimeType: "application/json" } : {}) },
+  });
+  if (!text) throw new AIError("Gemini", `empty answer from ${model} (${finish || "no reason given"})`, 502, "The AI gave an empty answer. Please try again.");
+  return text;
+}
+
 // Reads a PDF or a photo of a document and returns its text (used for CV import)
 export async function readDocument(bytes: Uint8Array, mimeType: string): Promise<string> {
   const { text } = await gemini(GEMINI_TEXT_MODELS(), {

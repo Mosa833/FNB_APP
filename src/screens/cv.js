@@ -7,6 +7,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { colors, radius } from '../theme';
 import { useApp } from '../store';
+import { badgeWords } from '../components/Badges';
 import { Screen, BackHeader, Button, Card, Field, Progress, Note, text } from '../ui';
 
 // ---------- The three CV templates ----------
@@ -148,7 +149,7 @@ function TemplatePicker({ visible, selected, onPick, onClose }) {
 
 // ---------- CV builder ----------
 export function CVBuilder() {
-  const { data, navigate } = useApp();
+  const { data, navigate, dataSaver, updateProfile } = useApp();
   const [step, setStep] = useState(1);
   const [template, setTemplate] = useState('classic');
   const [picker, setPicker] = useState(false);
@@ -163,7 +164,8 @@ export function CVBuilder() {
     const p = data.profile;
     const verified = data.skills.filter((s) => s.verified).map((s) => s.name.toLowerCase());
     const studying = data.education.some((e) => e.end_year === 'Still studying');
-    const skills = data.skills.map((s) => (s.verified ? `${s.name} (verified)` : s.name));
+    // Badge levels in plain words, for example "Excel (tested, practical task)"
+    const skills = data.skills.map((s) => (badgeWords(s) ? `${s.name} (${badgeWords(s)})` : s.name));
     const education = data.education.map((e) => `${e.title}${e.school ? `, ${e.school}` : ''}${e.end_year === 'Still studying' ? ' (in progress)' : e.end_year ? `, ${e.end_year}` : ''}`);
     setCv({
       name: p.full_name || '',
@@ -178,7 +180,7 @@ export function CVBuilder() {
       experience: data.experience.map((x) => ({ title: x.title, organisation: x.organisation, period: [x.start_text, x.end_text].filter(Boolean).join(' to '), description: x.description })),
       licence: p.drivers_licence || '',
       links: [p.linkedin_url, p.portfolio_url].filter(Boolean),
-      photo: p.avatar_url || '',
+      photo: dataSaver ? '' : p.avatar_url || '',
     });
     setSkillsText(skills.join('\n'));
     setEduText(education.join('\n'));
@@ -191,6 +193,8 @@ export function CVBuilder() {
     try {
       setBusy(true);
       const { uri } = await Print.printToFileAsync({ html: html() });
+      // Ticks "Build your CV" on the path to a job
+      if (!data.profile.cv_built_at) updateProfile({ cv_built_at: new Date().toISOString() }).catch(() => {});
       if (await Sharing.isAvailableAsync()) {
         await Sharing.shareAsync(uri, { mimeType: 'application/pdf', dialogTitle: 'Save or share your CV', UTI: 'com.adobe.pdf' });
       } else {

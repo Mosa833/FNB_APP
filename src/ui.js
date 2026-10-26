@@ -163,7 +163,9 @@ export function Progress({ value, color = colors.amber, track = 'rgba(255,255,25
 }
 
 export function Avatar({ text, size = 40, bg = colors.amber, uri }) {
-  if (uri) return <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.border }} />;
+  const { dataSaver } = useApp();
+  // Data saver: initials instead of downloading the photo
+  if (uri && !dataSaver) return <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.border }} />;
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ color: colors.white, fontWeight: '800', fontSize: size * 0.36 }}>{text}</Text>

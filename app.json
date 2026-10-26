@@ -25,7 +25,10 @@
       "package": "com.skillbridge.app",
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ]
     },
     "web": {
@@ -57,6 +60,12 @@
       ]
     ],
     "backgroundColor": "#F3F5F4",
-    "scheme": "skillbridge"
+    "scheme": "skillbridge",
+    "extra": {
+      "eas": {
+        "projectId": "0bb72050-ac58-4b2f-8eb4-b53d39c941ab"
+      }
+    },
+    "owner": "mosa833"
   }
 }

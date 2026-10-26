@@ -35,6 +35,7 @@ Option A, in the browser:
 6. Make a new query, paste `supabase/migrations/20261024000005_jsearch.sql` and click Run.
 7. Make a new query, paste `supabase/migrations/20261024000006_cv_import.sql` and click Run.
 8. Make a new query, paste `supabase/migrations/20261024000007_job_search.sql` and click Run.
+9. Make a new query, paste `supabase/migrations/20261024000008_mentor_feedback.sql` and click Run.
 
 Run them in this order.
 
@@ -107,6 +108,10 @@ What each function does:
 | jobs-sync | Pulls jobs from the Greenhouse and SmartRecruiters companies in `job_sources` (runs every 3 hours) |
 | test-feedback | Groq explains the questions the user got wrong in a skills test |
 | cv-import | Reads an uploaded CV (PDF, Word or photo) and returns profile details for the user to review. Gemini reads PDFs and photos, Groq picks out the details. The file is deleted straight after |
+| practical-task | Gives a short real task for a skill, then Gemini checks the photo or PDF of the work against a checklist (Practical badge, 5 a day) |
+| endorse | Used by the confirm page (web/endorse.html): a person confirms they saw the work (Endorsed badge) |
+| export-data | "Download my data": everything stored about the user as one file (POPIA) |
+| bias-check | Fairness test for match scores: same profile, only gender, name or background changed, scores must stay the same |
 | ai-health | Tests every key, AI model, job source and database update, and says what to fix |
 | career-coach | Career coach chat that knows the user's profile and the jobs they saved or applied for (40 messages per day) |
 | career-guide | Gemini writes a personal guide for a job they saved or applied for, or for a problem they describe (10 per day) |
@@ -184,6 +189,34 @@ Optional: `GEMINI_TEXT_MODEL` sets the Gemini model for matching, tests and guid
 5. Do an interview practice. After the last answer, feedback appears within about a minute.
 6. Apply for a job, then open Grow, Mentorship. The job shows under Guides for you. Tap it to get a guide.
 7. Tap Ask the career coach and send a question.
+
+## Mentor feedback features
+
+**Badges have three levels.** Tested (passed a knowledge test), Practical (a real task checked against a checklist) and Endorsed (confirmed by someone who saw the work). Users earn them on each skill's page (Profile, tap a skill). They cannot set badges themselves.
+
+**Skills tests.** Each attempt gets 8 random questions from the pool, and nobody can see the answers. After a failed test, users wait 12 hours before retrying (change `test_retry_hours()` in the database to adjust). New AI tests have 16 questions; the ready-made ones have 6 to 10.
+
+**Endorsement confirm page.** Supabase cannot show web pages from its functions, so the page the endorser opens lives on your Netlify site:
+1. Open `web/endorse.html` and replace `PASTE_YOUR_PUBLISHABLE_KEY` with your publishable key (the same one as in `.env`).
+2. Drag the `web` folder into Netlify (app.netlify.com/drop), or add `endorse.html` to your existing site.
+3. Add the page address to `.env`, for example `EXPO_PUBLIC_ENDORSE_URL=https://your-site.netlify.app/endorse.html`.
+4. Restart Expo (`npx expo start --clear`). For a built app, run `deploy.ps1` again: it copies the address into the build.
+Until this is done, the Endorsed level says it is not switched on yet. The endorser's phone or email is required, so employers can check: a user could otherwise open their own link.
+
+**Fairness test.** Run it after changing the scoring rules, and before a demo:
+```
+$secret = (Get-Content supabase\cron_secret.txt -Raw).Trim()
+$r = Invoke-RestMethod -Method Post -Uri "https://YOUR_REF.supabase.co/functions/v1/bias-check" -Headers @{ "x-cron-secret" = $secret } -ContentType "application/json" -Body '{}'
+$r.summary
+$r.details.jobs | Format-Table job, spread, noise, flagged, lowest_for
+```
+It uses about 10 Gemini requests and takes up to 2 minutes. The latest result shows in the app under Jobs, How match scores work. A job is flagged when scores move more than 10 points (or 5 points above normal variation) when only gender, name or background changes.
+
+**Job reports and dead links.** A reported job is hidden for the person who reported it, and for everyone after 3 reports (or 2 scam reports). The 3-hourly job sync checks up to 40 job links each run, reported ones first, and closes jobs whose page is gone.
+
+**Data saver** (More, Privacy and data): no camera preview or photos, and interview answers are typed. It is saved on the phone.
+
+**My path** (Home): the steps from finishing the profile to applying, with the next step highlighted.
 
 ## Health check: find out what is not working
 

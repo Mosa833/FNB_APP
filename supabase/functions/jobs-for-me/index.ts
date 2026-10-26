@@ -1,7 +1,7 @@
 // The user's job list: searches Adzuna and JSearch (Google for Jobs) live for their profile, adds company board jobs,
 // then Gemini scores how likely they are to get each job.
 import { serve, json, adminClient, requireUser, HttpError } from "../_shared/common.ts";
-import { askGemini, parseJSON } from "../_shared/ai.ts";
+import { profileForAI, scoreJobs, fitOf } from "../_shared/match.ts";
 import { adzunaConfigured, fetchAdzuna, jsearchConfigured, fetchJSearch, saveJobs, dedupeKey } from "../_shared/jobs.ts";
 
 const REFRESH_EVERY_MS = 3 * 60 * 60 * 1000; // live search at most every 3 hours, or when the user pulls to refresh
@@ -15,14 +15,12 @@ const rankSource = (j: any) =>
   j.source === "greenhouse" || j.source === "smartrecruiters" ? 0 : j.apply_direct ? 1 : j.source === "adzuna" ? 2 : j.source === "demo" ? 4 : 3;
 const STOP = new Set(["and", "the", "for", "with", "work", "worker", "assistant", "junior", "senior", "general", "basic", "skills", "office"]);
 
-type Match = { job_id: string; score: number; summary: string; reasons: string[]; missing: string[] };
 
 async function sha(text: string) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
 }
 const words = (s: string) => s.toLowerCase().split(/[^a-z0-9+#]+/).filter((w) => w.length >= 3 && !STOP.has(w));
-const chanceOf = (score: number) => (score >= 70 ? "High" : score >= 45 ? "Medium" : "Low");
 
 serve(async (req) => {
   const admin = adminClient();
@@ -35,7 +33,7 @@ serve(async (req) => {
 
   const [p, sk, edu, exp, langs] = await Promise.all([
     admin.from("profiles").select("*").eq("id", user.id).single(),
-    admin.from("user_skills").select("name, level, verified, verified_score").eq("user_id", user.id),
+    admin.from("user_skills").select("name, level, verified, verified_score, practical, endorsed").eq("user_id", user.id),
     admin.from("education").select("qualification, title, school, field, end_year").eq("user_id", user.id),
     admin.from("experience").select("title, organisation, kind, start_text, end_text, description").eq("user_id", user.id),
     admin.from("languages").select("name, level").eq("user_id", user.id),
@@ -83,9 +81,21 @@ serve(async (req) => {
   // ---------- 2. Candidate jobs, roughly filtered before the AI looks at them ----------
   const { data: pool } = await admin.from("jobs").select("*").eq("active", true).neq("source", "demo")
     .order("posted_at", { ascending: false, nullsFirst: false }).limit(400);
+  // Reported jobs: hidden for whoever reported them, and for everyone after 3 reports (or 2 scam reports)
+  const { data: reports } = await admin.from("job_reports").select("job_id, reason, user_id");
+  const hidden = new Set<string>();
+  const tally = new Map<string, { all: number; scam: number }>();
+  for (const r of reports ?? []) {
+    if (r.user_id === user.id) hidden.add(r.job_id);
+    const t = tally.get(r.job_id) ?? { all: 0, scam: 0 };
+    t.all++; if (r.reason === "scam") t.scam++;
+    tally.set(r.job_id, t);
+  }
+  tally.forEach((t, id) => { if (t.all >= 3 || t.scam >= 2) hidden.add(id); });
+
   // Only recent posts, and one copy of each job
   const cutoff = Date.now() - MAX_AGE_DAYS * 864e5;
-  const recent = (pool ?? []).filter((j: any) => !j.posted_at || new Date(j.posted_at).getTime() >= cutoff);
+  const recent = (pool ?? []).filter((j: any) => !hidden.has(j.id) && (!j.posted_at || new Date(j.posted_at).getTime() >= cutoff));
   const best = new Map<string, any>();
   for (const j of recent) {
     const key = j.dedupe_key || dedupeKey(j.title, j.company);
@@ -141,57 +151,15 @@ serve(async (req) => {
     .map((x) => x.j);
 
   // ---------- 3. Gemini scores the jobs it has not scored for this version of the profile ----------
-  const profileForAI = {
-    lives_in: prof.location, headline: prof.headline, about: prof.about,
-    wants: prof.job_types, availability: prof.availability, start: prof.start_date,
-    max_travel_km: prof.max_travel_km, drivers_licence: prof.drivers_licence,
-    skills: skills.map((s: any) => `${s.name} (${s.level}${s.verified ? `, verified by test ${s.verified_score ?? ""}%` : ", not tested"})`),
-    education: education.map((e: any) => `${e.title}${e.school ? `, ${e.school}` : ""}${e.end_year ? ` (${e.end_year})` : ""}`),
-    experience: experience.map((e: any) => `${e.title}${e.organisation ? ` at ${e.organisation}` : ""} (${e.kind}${e.start_text ? `, ${e.start_text} to ${e.end_text || "now"}` : ""})`),
-    languages: languages.map((l: any) => `${l.name} (${l.level})`),
-  };
-  const hash = await sha(JSON.stringify(profileForAI));
+  const forAI = profileForAI(prof, skills, education, experience, languages);
+  const hash = await sha(JSON.stringify(forAI));
   const toScore = ranked.filter((j) => matchByJob.get(j.id)?.profile_hash !== hash).slice(0, MAX_NEW_SCORES);
-
-  const system = `You are a careful South African recruiter. You judge how likely a young job seeker is to be hired for each job, based only on the facts given.
-Be realistic, not kind. Scores must be honest so people can trust them.
-Scoring guide (0 to 100):
-- Start from what the job clearly requires: qualifications, years of experience, specific skills, licences, languages, location.
-- A hard requirement they clearly do not meet (for example a degree, 3+ years experience, or a licence they lack) keeps the score under 35.
-- Skills verified by a test count more than skills they only listed. Informal work and volunteering count as some experience.
-- Being far from the job with no remote option lowers the score. Remote jobs are fine anywhere.
-- 80+ only when they meet almost everything. 50 to 79 when they meet the main needs but have gaps. Under 50 when key needs are missing.
-- If the job description is too short to judge, stay between 30 and 60 and say so in the summary.
-Write in plain, simple English. Reply with a JSON array only.`;
-
-  let aiFailed = false;
-  const scoreBatch = async (batch: any[]): Promise<Match[]> => {
-    const prompt = `The job seeker:\n${JSON.stringify(profileForAI)}\n\nThe jobs:\n` +
-      batch.map((j) => JSON.stringify({
-        job_id: j.id, title: j.title, company: j.company, location: j.full_area || j.area, remote: j.remote,
-        type: j.job_type, level: j.level, pay: j.pay, needs: j.needs, description: (j.description ?? "").slice(0, 1200),
-      })).join("\n") +
-      `\n\nFor every job return: {"job_id": same id, "score": 0-100, "summary": one sentence on their chances, ` +
-      `"reasons": up to 3 short strengths for this job, "missing": up to 3 short things they lack or should prove}. Return all ${batch.length} jobs.`;
-    try {
-      const out = parseJSON<Match[]>(await askGemini(system, prompt, { json: true }));
-      const ids = new Set(batch.map((j) => j.id));
-      return (Array.isArray(out) ? out : []).filter((m) => m && ids.has(m.job_id) && Number.isFinite(Number(m.score)));
-    } catch (e) {
-      console.error("Scoring batch failed", e);
-      aiFailed = true;
-      return [];
-    }
-  };
-
-  const batches: any[][] = [];
-  for (let i = 0; i < toScore.length; i += BATCH) batches.push(toScore.slice(i, i + BATCH));
-  const scored = (await Promise.all(batches.map(scoreBatch))).flat();
+  const { matches: scored, failed: aiFailed } = await scoreJobs(forAI, toScore, BATCH);
   if (scored.length) {
     const rows = scored.map((m) => {
       const score = Math.max(0, Math.min(100, Math.round(Number(m.score))));
       return {
-        user_id: user.id, job_id: m.job_id, score, chance: chanceOf(score),
+        user_id: user.id, job_id: m.job_id, score, chance: fitOf(score),
         summary: String(m.summary ?? "").slice(0, 400),
         reasons: (m.reasons ?? []).map(String).slice(0, 3),
         missing: (m.missing ?? []).map(String).slice(0, 3),

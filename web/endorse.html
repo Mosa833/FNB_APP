@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Confirm a skill on SkillBridge</title>
+<style>
+  :root { --teal:#0B7A6B; --dark:#0A4D45; --light:#E0F0EE; --text:#1B2B29; --muted:#6B7A78; --bg:#F3F5F4; --red:#C62828; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Arial, Helvetica, sans-serif; background: var(--bg); color: var(--text); }
+  header { background: var(--dark); color:#fff; padding: 18px 20px; font-size: 20px; font-weight: bold; }
+  main { max-width: 480px; margin: 0 auto; padding: 20px; }
+  .card { background:#fff; border:1px solid #DCE3E1; border-radius: 14px; padding: 20px; }
+  h1 { font-size: 21px; margin: 0 0 10px; }
+  p { font-size: 16px; line-height: 23px; margin: 0 0 12px; }
+  .muted { color: var(--muted); font-size: 14px; line-height: 20px; }
+  button { width: 100%; min-height: 50px; border-radius: 12px; font-size: 16px; font-weight: bold; margin-top: 10px; cursor: pointer; }
+  .yes { background: var(--teal); color:#fff; border: 0; }
+  .no { background:#fff; color: var(--text); border: 1.5px solid #DCE3E1; }
+  label { display:flex; gap:10px; align-items:flex-start; font-size: 15px; line-height: 21px; margin: 14px 0 4px; }
+  input[type=checkbox] { width: 20px; height: 20px; margin-top: 1px; accent-color: var(--teal); }
+  .note { background: var(--light); color: var(--dark); border-radius: 10px; padding: 12px; font-size: 14px; line-height: 20px; margin-top: 14px; }
+  .error { color: var(--red); }
+</style>
+</head>
+<body>
+<header>SkillBridge</header>
+<main>
+  <div class="card" id="box"><p>Loading...</p></div>
+  <p class="muted" style="margin-top:14px">SkillBridge helps young South Africans show employers what they can do. We only record your answer, and the name and contact the person gave us for you.</p>
+</main>
+<script>
+  // Set this to your Supabase project's address (Project Settings, API). It is public, like in the app.
+  var SUPABASE_URL = "https://lgjldxmgxjssmhmzobtq.supabase.co";
+  var SUPABASE_KEY = "sb_publishable_DFAN1I53eK8hSD-sSl0_2g_fIw5HwTm";
+
+  var box = document.getElementById("box");
+  var token = new URLSearchParams(location.search).get("t") || "";
+  function esc(s) { return String(s || "").replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function call(body) {
+    return fetch(SUPABASE_URL + "/functions/v1/endorse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong."); return j; }); });
+  }
+  function done(v) {
+    box.innerHTML = v.status === "confirmed"
+      ? "<h1>Thank you</h1><p>You confirmed " + esc(v.person) + "'s " + esc(v.skill) + " skill. It now shows as endorsed on their profile.</p>"
+      : v.status === "declined"
+        ? "<h1>Thank you</h1><p>You chose not to confirm. Nothing was added to " + esc(v.person) + "'s profile.</p>"
+        : "<h1>Already answered</h1><p>This request was answered before.</p>";
+  }
+  function show(v) {
+    if (v.status !== "pending") return done(v);
+    box.innerHTML =
+      "<h1>Can you confirm " + esc(v.person) + "'s " + esc(v.skill) + " skill?</h1>" +
+      "<p>" + esc(v.person) + " asked you, " + esc(v.endorser_name) + ", to confirm they can do <b>" + esc(v.skill) + "</b>. They said you are their <b>" + esc(v.relationship) + "</b>.</p>" +
+      "<label><input type='checkbox' id='seen'> I have seen " + esc(v.person) + " use this skill, and I am happy for employers to contact me to check.</label>" +
+      "<button class='yes' id='yes' disabled>Confirm</button>" +
+      "<button class='no' id='no'>I can't confirm this</button>" +
+      "<div class='note'>Only confirm what you have seen yourself. Employers may call you to check.</div>";
+    var seen = document.getElementById("seen"), yes = document.getElementById("yes");
+    seen.onchange = function () { yes.disabled = !seen.checked; yes.style.opacity = seen.checked ? 1 : 0.5; };
+    yes.style.opacity = 0.5;
+    yes.onclick = function () { answer("confirm"); };
+    document.getElementById("no").onclick = function () { answer("decline"); };
+  }
+  function answer(a) {
+    box.innerHTML = "<p>Saving...</p>";
+    call({ token: token, answer: a }).then(done).catch(fail);
+  }
+  function fail(e) { box.innerHTML = "<h1>Sorry</h1><p class='error'>" + esc(e.message) + "</p>"; }
+  if (!token) fail(new Error("This link is missing its code. Ask for the link again."));
+  else call({ token: token }).then(show).catch(fail);
+</script>
+</body>
+</html>

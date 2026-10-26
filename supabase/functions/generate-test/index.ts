@@ -30,18 +30,21 @@ serve(async (req) => {
     `If this is not a real work skill, or it is offensive, reply {"error":"not a skill"}.\n` +
     `Otherwise reply in this exact JSON shape:\n` +
     `{"name":"short test name","minutes":8,"questions":[{"question":"...","options":["...","...","...","..."],"answer_index":0}]}\n` +
-    `Rules: exactly 8 questions, exactly 4 options each, one correct answer, vary the position of the correct answer, ` +
+    `Rules: exactly 16 different questions (each attempt draws 8 at random, so no two may test the same fact), exactly 4 options each, one correct answer, vary the position of the correct answer, ` +
     `each question under 30 words, test practical knowledge someone would use on the job.\n` +
-    `Mix: about 3 "what does this mean / which tool" questions and 5 "what would you do in this work situation" questions, easy to medium level.`;
+    `Mix: about 6 "what does this mean / which tool" questions and 10 "what would you do in this work situation" questions, easy to medium level.`;
 
-  const raw = parseJSON<Generated & { error?: string }>(await askGemini(system, prompt, { json: true }));
+  const raw = parseJSON<Generated & { error?: string }>(await askGemini(system, prompt, { json: true, maxTokens: 12000 }));
   if (raw.error) throw new HttpError(400, "We could not create a test for this skill.");
 
   const questions = (raw.questions ?? []).filter(
     (q) => q && typeof q.question === "string" && Array.isArray(q.options) && q.options.length === 4 &&
       Number.isInteger(q.answer_index) && q.answer_index >= 0 && q.answer_index < 4,
   );
-  if (questions.length < 5) throw new HttpError(502, "The test did not come out right. Please try again.");
+  const seenQ = new Set<string>();
+  const unique = questions.filter((q) => { const k = q.question.trim().toLowerCase(); if (seenQ.has(k)) return false; seenQ.add(k); return true; });
+  if (unique.length < 10) throw new HttpError(502, "The test did not come out right. Please try again.");
+  questions.length = 0; questions.push(...unique);
 
   const { data: test, error } = await admin
     .from("tests")

@@ -21,10 +21,12 @@ export function postedAgo(iso) {
   return `Posted ${Math.floor(days / 30)} month${days >= 60 ? 's' : ''} ago`;
 }
 
+// How well a profile fits a job. Worded as fit, never as a chance of being hired.
+export const FIT = { High: 'Strong fit', Medium: 'Fair fit', Low: 'Weak fit' };
 export function ChanceChip({ match, small }) {
   if (!match) return null;
   const tone = match.chance === 'High' ? 'verified' : match.chance === 'Medium' ? 'amber' : 'red';
-  return <Chip small={small} label={`${match.chance} chance · ${match.score}%`} tone={tone} />;
+  return <Chip small={small} label={`${FIT[match.chance] || match.chance} · ${match.score}%`} tone={tone} />;
 }
 
 const nearMe = (j, location) => {
@@ -32,7 +34,7 @@ const nearMe = (j, location) => {
   return words.some((w) => `${j.area} ${j.full_area || ''}`.toLowerCase().includes(w));
 };
 
-// 13. Opportunities: live jobs, ranked by the user's chance of getting them
+// 13. Opportunities: live jobs, ranked by how well the user fits them
 export function Jobs() {
   const { navigate, data, isGuest } = useApp();
   const [res, setRes] = useState(null);
@@ -109,7 +111,7 @@ export function Jobs() {
         )}
       </View>
       <Text style={[text.muted, { marginBottom: 12 }]}>
-        {isGuest ? 'Latest jobs in South Africa.' : 'Real jobs picked for your profile, best chance first.'}
+        {isGuest ? 'Latest jobs in South Africa.' : 'Real jobs picked for your profile, best fit first.'}
       </Text>
 
       <View style={st.searchBox}>
@@ -158,10 +160,10 @@ export function Jobs() {
         {FILTERS.filter((f) => !(isGuest && (f === 'Saved' || f === 'Near me'))).map((f) => <Chip key={f} label={f} active={filter === f} onPress={() => setFilter(f)} />)}
       </ScrollView>
 
-      {isGuest && <Note tone="amber">Create a free account to see your chance of getting each job, save jobs and apply.</Note>}
+      {isGuest && <Note tone="amber">Create a free account to see how well you fit each job, save jobs and apply.</Note>}
       {!isGuest && res?.demo && res?.live_search === false && <Note tone="amber">Live job search isn't switched on yet, so these are sample jobs.</Note>}
       {!isGuest && res?.demo && res?.live_search && <Note tone="amber">We found only a few live jobs for your profile, so some sample jobs are shown too. Add more skills or job types to find more.</Note>}
-      {!isGuest && res?.ai_error && <Note tone="amber">We couldn't work out your chances right now, so these jobs are shown without them. Tap Refresh to try again.</Note>}
+      {!isGuest && res?.ai_error && <Note tone="amber">We couldn't work out how well you fit right now, so these jobs are shown without it. Tap Refresh to try again.</Note>}
       {!isGuest && res?.pending > 0 && !res?.ai_error && <Note>We're still checking {res.pending} more job{res.pending === 1 ? '' : 's'} against your profile. Tap Refresh in a minute to see them.</Note>}
       <ErrorNote message={error} onRetry={() => load()} />
 
@@ -192,7 +194,11 @@ export function Jobs() {
         </Card>
       )}
       {hasAdzuna ? <Text style={[text.small, { textAlign: 'center', marginTop: 10 }]}>Jobs by Adzuna</Text> : null}
-      {!isGuest && res?.jobs?.length ? <Text style={[text.small, { textAlign: 'center', marginTop: 4 }]}>Chances are an AI estimate from your profile and the job post. Use them as a guide.</Text> : null}
+      {!isGuest && res?.jobs?.length ? (
+        <Pressable onPress={() => navigate('HowScores')} hitSlop={6}>
+          <Text style={[text.small, { textAlign: 'center', marginTop: 4 }]}>Fit is an AI estimate from your profile and the job post, not a promise of a job. <Text style={text.link}>How match scores work</Text></Text>
+        </Pressable>
+      ) : null}
     </Screen>
   );
 }
@@ -206,6 +212,22 @@ export function JobDetail() {
   const [applied, setApplied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [reported, setReported] = useState(false);
+
+  const report = () => {
+    if (isGuest) return navigate('Locked', { feature: 'Reporting jobs' });
+    const send = async (reason) => {
+      try { await api.reportJob(j.id, reason); setReported(true); Alert.alert('Thank you', 'We hide this job for you, and check it. Jobs reported by several people are removed for everyone.'); }
+      catch (e) { Alert.alert('Could not send the report', api.friendlyError(e)); }
+    };
+    Alert.alert('Report this job', 'What is wrong with it?', [
+      { text: 'The job is closed', onPress: () => send('closed') },
+      { text: 'The link does not work', onPress: () => send('broken_link') },
+      { text: 'It looks like a scam', onPress: () => send('scam') },
+      { text: 'The details are wrong', onPress: () => send('wrong_details') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
 
   useEffect(() => {
     if (isGuest) return;
@@ -281,7 +303,7 @@ export function JobDetail() {
               <Text style={{ fontWeight: '800', fontSize: 18, color: colors.text }}>{m.score}%</Text>
             </View>
             <View style={{ flex: 1, marginLeft: 14 }}>
-              <Text style={text.h3}>{m.chance} chance</Text>
+              <Text style={text.h3}>{FIT[m.chance] || m.chance}</Text>
               {m.summary ? <Text style={text.muted}>{m.summary}</Text> : null}
             </View>
           </View>
@@ -296,9 +318,12 @@ export function JobDetail() {
               <Text style={[text.link, { marginTop: 8 }]}>Get a guide to improve my chances</Text>
             </Pressable>
           ) : null}
+          <Pressable onPress={() => navigate('HowScores')} hitSlop={6}>
+            <Text style={[text.small, { marginTop: 8 }]}>This is an estimate, not a promise. <Text style={text.link}>How match scores work</Text></Text>
+          </Pressable>
         </Card>
       ) : isGuest ? (
-        <Note tone="amber" style={{ marginTop: 14 }}>Create a free account to see your chance of getting this job.</Note>
+        <Note tone="amber" style={{ marginTop: 14 }}>Create a free account to see how well you fit this job.</Note>
       ) : null}
 
       {desc ? (
@@ -316,11 +341,52 @@ export function JobDetail() {
         </Pressable>
       ) : null}
       {j.source === 'adzuna' ? <Text style={[text.small, { marginTop: 10 }]}>Jobs by Adzuna</Text> : null}
+      <Pressable onPress={report} disabled={reported} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', marginTop: 16 }} accessibilityLabel="Report this job">
+        <Ionicons name="flag-outline" size={16} color={reported ? colors.muted : colors.red} />
+        <Text style={[text.small, { marginLeft: 6, color: reported ? colors.muted : colors.red, fontWeight: '700' }]}>{reported ? 'Reported. Thank you.' : 'Report this job'}</Text>
+      </Pressable>
     </Screen>
   );
 }
 
 // Short course placeholder used by "close the gap" links on sample jobs
+// How match scores work, in plain words, with the latest fairness test
+export function HowScores() {
+  const [report, setReport] = useState(undefined);
+  useEffect(() => { api.latestBiasReport().then(setReport).catch(() => setReport(null)); }, []);
+  const rows = [
+    ['What we look at', 'Your skills and how you proved them, education, experience (informal work counts), languages the job needs, your licence, and how far the job is from you.'],
+    ['What we never use', 'Your name, photo, age, gender, race, religion, home language or the area you grew up in. Where you live only counts as travel distance.'],
+    ['Proof counts', 'A skill confirmed by someone who saw your work counts most, then a practical task, then a passed test, then a skill you only listed.'],
+    ['What the score means', 'How well your profile fits what the job asks for. It is an estimate by AI (Google Gemini), not a promise of an interview or a job.'],
+    ['Why a score is low', 'Usually a hard requirement you do not meet yet, like a qualification or years of experience. Each job shows what is missing and how to close the gap.'],
+  ];
+  return (
+    <Screen>
+      <BackHeader title="How match scores work" />
+      <Text style={text.h1}>How match scores work</Text>
+      {rows.map(([t, b]) => (
+        <Card key={t}>
+          <Text style={text.h3}>{t}</Text>
+          <Text style={[text.body, { marginTop: 4 }]}>{b}</Text>
+        </Card>
+      ))}
+      <Text style={[text.h3, { marginTop: 10, marginBottom: 6 }]}>Fairness test</Text>
+      {report === undefined ? <Loading /> : report === null ? (
+        <Note tone="amber">No fairness test has been run yet.</Note>
+      ) : (
+        <Card style={{ borderColor: report.passed ? colors.teal : colors.amber }}>
+          <Text style={[text.h3, { color: report.passed ? colors.teal : '#9A5B00' }]}>{report.passed ? 'Passed' : 'Needs work'}</Text>
+          <Text style={[text.body, { marginTop: 4 }]}>{report.summary}</Text>
+          <Text style={[text.small, { marginTop: 8 }]}>
+            How it works: we score the same practice profile against the same real jobs, changing only details that must not matter (gender, name, background), and check the scores stay the same. Last run {new Date(report.created_at).toLocaleDateString('en-ZA')}.
+          </Text>
+        </Card>
+      )}
+    </Screen>
+  );
+}
+
 export function Course() {
   const { current } = useApp();
   const topic = current.params.topic;

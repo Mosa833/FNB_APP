@@ -13,6 +13,8 @@ import { ChanceChip } from './jobs';
 import { profileProgress } from '../lib/progress';
 import { QUALIFICATIONS, EXPERIENCE_KINDS, LANGUAGE_OPTIONS, JOB_TYPES, AVAILABILITY, START_OPTIONS, TRAVEL_OPTIONS, LICENCES } from '../data';
 import { AutocompleteField, LocationField } from '../components/Autocomplete';
+import { MyPathCard } from '../components/MyPath';
+import { BadgeRow } from '../components/Badges';
 import { Screen, BackHeader, Button, Field, Select, Card, Chip, Progress, Avatar, Note, SectionTitle, ErrorNote, Loading, text } from '../ui';
 
 const YEARS = Array.from({ length: 20 }, (_, i) => String(new Date().getFullYear() - i));
@@ -63,6 +65,8 @@ export function Home() {
         <Text style={{ color: 'rgba(255,255,255,0.85)', marginTop: 10, fontSize: 13 }}>{hint}</Text>
       </Pressable>
 
+      {!isGuest && <MyPathCard />}
+
       <View style={st.grid}>
         {quick.map((q) => (
           <Pressable key={q.label} style={st.quick} onPress={() => navigate(q.go, q.params)}>
@@ -76,7 +80,7 @@ export function Home() {
       {jobs === null ? <Loading /> : jobs.length === 0 ? (
         <Card onPress={() => navigate('Jobs')}>
           <Text style={text.h3}>{isGuest ? 'Browse the latest jobs' : 'Find jobs picked for you'}</Text>
-          <Text style={[text.muted, { marginTop: 4 }]}>{isGuest ? 'See real jobs in South Africa.' : 'We search live jobs and show your chance of getting each one.'}</Text>
+          <Text style={[text.muted, { marginTop: 4 }]}>{isGuest ? 'See real jobs in South Africa.' : 'We search live jobs and show how well you fit each one.'}</Text>
         </Card>
       ) : jobs.map((j) => (
         <Card key={j.id} onPress={() => navigate('JobDetail', { job: j })}>
@@ -178,12 +182,16 @@ export function Profile() {
 
         <SectionTitle title="My skills" action="Edit" onAction={() => navigate('Skills')} />
         {data.skills.length === 0 && <Text style={text.muted}>No skills added yet.</Text>}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-          {data.skills.map((sk) => (
-            <Chip key={sk.id} label={sk.verified ? `${sk.name} ✓` : sk.name} tone={sk.verified ? 'verified' : 'default'} />
-          ))}
-        </View>
-        {data.skills.length > 0 && <Text style={text.small}>✓ = verified by a skills test</Text>}
+        {data.skills.map((sk) => (
+          <Card key={sk.id} onPress={() => navigate(isGuest ? 'Assessments' : 'SkillBadges', { skillId: sk.id })} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 10 }}>
+            <View style={{ flex: 1 }}>
+              <Text style={text.h3}>{sk.name} <Text style={text.small}>· {sk.level}</Text></Text>
+              <BadgeRow skill={sk} />
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.muted} />
+          </Card>
+        ))}
+        {data.skills.length > 0 && <Text style={text.small}>Tested = passed a test · Practical = did a real task · Endorsed = confirmed by someone who saw the work. Tap a skill to add proof.</Text>}
 
         <SectionTitle title="Languages" action="Edit" onAction={() => navigate('Languages')} />
         {data.languages.length === 0 ? <Text style={text.muted}>Add the languages you can speak at work.</Text> : (

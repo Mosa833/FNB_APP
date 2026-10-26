@@ -170,7 +170,7 @@ export function Landing() {
 
 // 3. Register
 export function Register() {
-  const { startUserSession, reset, replace } = useApp();
+  const { startUserSession, reset, replace, navigate } = useApp();
   const [f, setF] = useState({ name: '', email: '', phone: '', username: '', password: '' });
   const [place, setPlace] = useState({ location: '', place_id: null });
   const [agree, setAgree] = useState(false);
@@ -190,7 +190,7 @@ export function Register() {
     if (!/^[a-zA-Z0-9_.]{3,20}$/.test(f.username.trim())) e.username = 'Use 3 to 20 letters, numbers, dots or underscores.';
     if (!place.location.trim()) e.location = 'Tell us where you live so we can find jobs near you.';
     if (f.password.length < 8) e.password = 'Password needs at least 8 characters.';
-    if (!agree) e.agree = 'Please agree to the Terms and Privacy Policy.';
+    if (!agree) e.agree = 'Please tick the box to agree to how SkillBridge uses your information.';
     setErrors(e);
     setServerError('');
     if (Object.keys(e).length) return;
@@ -246,8 +246,11 @@ export function Register() {
         <View style={[st.check, agree && { backgroundColor: colors.teal, borderColor: colors.teal }]}>
           {agree && <Ionicons name="checkmark" size={14} color={colors.white} />}
         </View>
-        <Text style={text.body}>I agree to the Terms and Privacy Policy</Text>
+        <Text style={[text.body, { flex: 1 }]}>I agree that SkillBridge keeps my profile and practice answers to match me with jobs and give feedback</Text>
       </Pressable>
+      <Text style={[text.small, { marginBottom: 6, marginLeft: 32 }]}>
+        We never sell your information, and you can download or delete it at any time. <Text style={text.link} onPress={() => navigate('Privacy')}>How we use your information</Text>
+      </Text>
       {errors.agree ? <Text style={{ color: colors.red, fontSize: 12, marginBottom: 6 }}>{errors.agree}</Text> : null}
       <ErrorNote message={serverError} />
       <Button title="Sign up" onPress={submit} loading={busy} style={{ marginTop: 10 }} />

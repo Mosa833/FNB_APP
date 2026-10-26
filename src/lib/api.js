@@ -5,6 +5,9 @@ import { makeInvoke } from './invoke';
 // Turn Supabase errors into plain messages people can act on
 export function friendlyError(err) {
   const msg = err?.message || String(err || '');
+  // A failed skills test can be retried after a wait (see start_test in the database)
+  const retry = msg.match(/RETRY_LATER:(.+)$/);
+  if (retry) return `You can take this test again after ${retry[1].trim()}. Use the time to practise the questions you missed.`;
   if (/Invalid login credentials/i.test(msg)) return 'Your username, email or password is not right.';
   if (/Email not confirmed/i.test(msg)) return 'Please confirm your email first. Check your inbox for the link.';
   if (/User already registered/i.test(msg)) return 'An account with this email already exists. Try logging in.';
@@ -110,11 +113,12 @@ export async function searchPlaces(input, sessionToken) {
 export async function fetchTests() {
   return check(await supabase.from('tests').select('id, skill, name, minutes, extra, question_count'));
 }
-export async function fetchQuestions(testId) {
-  return check(await supabase.from('test_questions_public').select('*').eq('test_id', testId).order('position'));
+// Starts a test: up to 8 random questions from the pool (never the answers), and an attempt for logged-in users
+export async function startTest(testId) {
+  return check(await supabase.rpc('start_test', { p_test_id: testId }));
 }
-export async function submitTest(testId, answers) {
-  return check(await supabase.rpc('submit_test', { p_test_id: testId, p_answers: answers }));
+export async function submitAttempt(attemptId, questionIds, answers) {
+  return check(await supabase.rpc('submit_attempt', { p_attempt_id: attemptId, p_question_ids: questionIds, p_answers: answers }));
 }
 export async function generateTest(skill) {
   return (await invoke('generate-test', { skill })).test_id;
@@ -222,4 +226,46 @@ export async function jobsByIds(ids) {
 // The CV must already be uploaded to the cv-uploads folder. Returns profile details for review; saves nothing.
 export async function importCv(path) {
   return (await invoke('cv-import', { path })).profile;
+}
+
+
+// ---------- Badge levels: practical task and endorsements ----------
+export async function practicalTask(skillId) {
+  return invoke('practical-task', { skill_id: skillId });
+}
+export async function submitPractical(skillId, path, description) {
+  return invoke('practical-task', { action: 'submit', skill_id: skillId, path, description });
+}
+export async function endorsementsFor(skillId) {
+  return check(await supabase.from('endorsements').select('id, endorser_name, relationship, contact, status, token, created_at').eq('skill_id', skillId).order('created_at', { ascending: false }));
+}
+export async function requestEndorsement(skillId, { name, relationship, contact }) {
+  return check(await supabase.from('endorsements').insert({ skill_id: skillId, endorser_name: name, relationship, contact }).select('id, endorser_name, relationship, contact, status, token, created_at').single());
+}
+export async function cancelEndorsement(id) {
+  check(await supabase.from('endorsements').delete().eq('id', id));
+}
+
+// ---------- Job reports, fairness report, my data, my path ----------
+export async function reportJob(jobId, reason) {
+  const { error } = await supabase.from('job_reports').insert({ job_id: jobId, reason });
+  if (error && !/duplicate|unique/i.test(error.message)) throw error; // already reported = fine
+}
+export async function latestBiasReport() {
+  const rows = check(await supabase.from('bias_reports').select('created_at, passed, summary, details').order('created_at', { ascending: false }).limit(1));
+  return rows[0] || null;
+}
+export async function exportMyData() {
+  return invoke('export-data', {});
+}
+// What is done on the path from a skills test to an application
+export async function pathStatus() {
+  const count = async (q) => { const { count: c } = await q; return c || 0; };
+  const [matches, guides, interviews, applications] = await Promise.all([
+    count(supabase.from('job_matches').select('job_id', { count: 'exact', head: true })),
+    count(supabase.from('guides').select('id', { count: 'exact', head: true }).not('job_id', 'is', null)),
+    count(supabase.from('interview_sessions').select('id', { count: 'exact', head: true }).eq('status', 'graded')),
+    count(supabase.from('applications').select('id', { count: 'exact', head: true })),
+  ]);
+  return { matches, guides, interviews, applications };
 }

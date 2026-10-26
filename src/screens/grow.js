@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Alert, ActivityIndicator, Linking, TextInput, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Alert, ActivityIndicator, Linking, TextInput, ScrollView, KeyboardAvoidingView, Platform, Switch } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -350,7 +350,8 @@ const nextMonthStart = () => {
 };
 
 export function InterviewSetup() {
-  const { data, navigate } = useApp();
+  const { data, navigate, dataSaver } = useApp();
+  const [typed, setTyped] = useState(dataSaver);
   const [left, setLeft] = useState(null);
   const [past, setPast] = useState([]);
   const [query, setQuery] = useState('');
@@ -371,7 +372,7 @@ export function InterviewSetup() {
     try {
       setBusy(true); setError('');
       const res = await api.startInterview(jobType, qType, minutes * 60);
-      navigate('InterviewSession', { sessionId: res.session_id, questions: res.questions, answerSeconds: res.answer_seconds, jobType });
+      navigate('InterviewSession', { sessionId: res.session_id, questions: res.questions, answerSeconds: res.answer_seconds, jobType, typed });
     } catch (e) {
       setError(api.friendlyError(e));
     } finally {
@@ -418,7 +419,16 @@ export function InterviewSetup() {
         {[1, 2, 3].map((m) => <Chip key={m} label={`${m} min`} active={minutes === m} onPress={() => setMinutes(m)} />)}
       </View>
 
-      <Note>You'll see each question first. Tap record when you're ready, answer out loud, and we'll grade your answers at the end with tips to say things better.</Note>
+      <View style={st.typedRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={text.body}>Type my answers</Text>
+          <Text style={text.small}>Uses almost no data. Speaking out loud is better practice when you can.</Text>
+        </View>
+        <Switch value={typed} onValueChange={setTyped} trackColor={{ true: colors.teal, false: colors.border }} thumbColor={colors.white} accessibilityLabel="Type my answers" />
+      </View>
+      <Note>{typed
+        ? "You'll see each question and type your answer. We'll grade your answers at the end with tips to say things better."
+        : "You'll see each question first. Tap record when you're ready, answer out loud, and we'll grade your answers at the end with tips to say things better."}</Note>
       {left === 0 && <Note tone="amber">You've used all {MONTHLY_LIMIT} sessions this month. New sessions open on {nextMonthStart()}.</Note>}
       <ErrorNote message={error} />
       <Button title={busy ? 'Getting your questions...' : 'Start practice (5 questions)'} loading={busy} disabled={left === 0} onPress={start} style={{ marginTop: 6 }} />
@@ -464,7 +474,72 @@ const AUDIO_TYPE = Platform.OS === 'ios' ? 'audio/wav' : 'audio/aac';
 const fmt = (t) => `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
 
 export function InterviewSession() {
-  const { current, goBack, replace, uid } = useApp();
+  const { current } = useApp();
+  return current.params.typed ? <TypedSession /> : <RecordedSession />;
+}
+
+// Data saver: questions answered by typing. No camera, microphone or upload.
+function TypedSession() {
+  const { current, goBack, replace } = useApp();
+  const { sessionId, questions } = current.params;
+  const [index, setIndex] = useState(0);
+  const [answers, setAnswers] = useState(questions.map(() => ''));
+  const [grading, setGrading] = useState(false);
+  const [error, setError] = useState('');
+  const textNow = answers[index];
+  const words = textNow.trim() ? textNow.trim().split(/\s+/).length : 0;
+
+  const grade = async () => {
+    try {
+      setGrading(true); setError('');
+      await api.gradeInterview(sessionId, answers.map((t, i) => ({ position: i + 1, text: t.trim(), duration_seconds: 0 })));
+      replace('InterviewResult', { sessionId });
+    } catch (e) {
+      setError(api.friendlyError(e));
+      setGrading(false);
+    }
+  };
+  const quit = () => Alert.alert('End practice?', 'This session will not count towards your monthly limit.', [
+    { text: 'Stay', style: 'cancel' },
+    { text: 'End', style: 'destructive', onPress: goBack },
+  ]);
+
+  if (grading) return <Screen><Loading label="Grading your answers. This can take up to a minute..." /></Screen>;
+  return (
+    <Screen
+      footer={
+        <View style={st.typedFooter}>
+          <Button title="Back" variant="plain" onPress={() => setIndex(index - 1)} disabled={index === 0} style={{ flex: 1, marginRight: 6 }} />
+          <Button title={index === questions.length - 1 ? 'Finish and grade' : 'Next'} disabled={words < 3}
+            onPress={() => (index === questions.length - 1 ? grade() : setIndex(index + 1))} style={{ flex: 1, marginLeft: 6 }} />
+        </View>
+      }
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+        <Pressable onPress={quit} hitSlop={12} accessibilityLabel="End practice"><Ionicons name="close" size={24} color={colors.text} /></Pressable>
+        <Text style={[text.small, { flex: 1, textAlign: 'right' }]}>Question {index + 1} of {questions.length} · typed</Text>
+      </View>
+      <Progress value={((index + 1) / questions.length) * 100} track={colors.border} />
+      <Text style={[text.h2, { marginVertical: 18, lineHeight: 28 }]}>{questions[index]}</Text>
+      <TextInput
+        style={st.typedInput}
+        multiline
+        value={textNow}
+        onChangeText={(v) => setAnswers(answers.map((a, i) => (i === index ? v : a)))}
+        placeholder="Write your answer as you would say it in the interview"
+        placeholderTextColor="#9AA6A4"
+        maxLength={1500}
+        textAlignVertical="top"
+        accessibilityLabel="Your answer"
+      />
+      <Text style={[text.small, { marginTop: 6 }]}>{words} words · aim for 40 to 120, with one real example</Text>
+      <ErrorNote message={error} />
+    </Screen>
+  );
+}
+
+function RecordedSession() {
+  const { current, goBack, replace, uid, dataSaver } = useApp();
   const { sessionId, questions, answerSeconds, jobType } = current.params;
   const insets = useSafeAreaInsets();
   const recorder = useAudioRecorder(RECORDING_OPTIONS);
@@ -483,7 +558,7 @@ export function InterviewSession() {
       const mic = await requestRecordingPermissionsAsync();
       setMicOk(mic.granted);
       if (mic.granted) await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      if (!camPerm?.granted) await requestCam();
+      if (!dataSaver && !camPerm?.granted) await requestCam();
     })();
     return () => {
       clearInterval(timer.current);
@@ -603,12 +678,12 @@ export function InterviewSession() {
 
       {/* Camera */}
       <View style={st.camBox}>
-        {camPerm?.granted ? (
+        {camPerm?.granted && !dataSaver ? (
           <CameraView style={StyleSheet.absoluteFill} facing="front" mute mode="picture" />
         ) : (
           <View style={st.camPlaceholder}>
             <Ionicons name="person-circle-outline" size={90} color="#5E7A75" />
-            <Text style={[st.whiteMuted, { textAlign: 'center', marginTop: 6 }]}>Allow the camera to see yourself while you practise. Only your voice is recorded.</Text>
+            <Text style={[st.whiteMuted, { textAlign: 'center', marginTop: 6 }]}>{dataSaver ? 'Camera off to save data. Only your voice is recorded.' : 'Allow the camera to see yourself while you practise. Only your voice is recorded.'}</Text>
           </View>
         )}
         {phase === 'ready' && (
@@ -714,6 +789,9 @@ export function InterviewResult() {
 }
 
 const st = StyleSheet.create({
+  typedRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: 12, marginVertical: 8 },
+  typedInput: { minHeight: 180, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.white, padding: 14, fontSize: 16, lineHeight: 22, color: colors.text },
+  typedFooter: { flexDirection: 'row', paddingHorizontal: 20, paddingTop: 8, paddingBottom: 8, backgroundColor: colors.bg, borderTopWidth: 1, borderTopColor: colors.border },
   coachCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.tealDark, borderRadius: radius.md, padding: 16, marginTop: 4 },
   coachIcon: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.amber, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
   bubble: { maxWidth: '85%', borderRadius: radius.md, padding: 12, marginTop: 8 },

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useMemo, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useMemo, useState, useCallback, useRef, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './lib/supabase';
 import * as api from './lib/api';
 
@@ -26,6 +27,14 @@ export function AppProvider({ children }) {
   const [data, setData] = useState(emptyBundle());
   const uidRef = useRef(null);
   const linkNoticeRef = useRef(null);
+
+  // Data saver (kept on this phone): no camera preview, no photos, typed interview answers
+  const [dataSaver, setDataSaverState] = useState(false);
+  useEffect(() => { AsyncStorage.getItem('skillbridge.dataSaver').then((v) => setDataSaverState(v === '1')).catch(() => {}); }, []);
+  const setDataSaver = useCallback((on) => {
+    setDataSaverState(on);
+    AsyncStorage.setItem('skillbridge.dataSaver', on ? '1' : '0').catch(() => {});
+  }, []);
   const setLinkNotice = useCallback((n) => { linkNoticeRef.current = n; }, []);
   const takeLinkNotice = useCallback(() => { const n = linkNoticeRef.current; linkNoticeRef.current = null; return n; }, []);
 
@@ -121,7 +130,8 @@ export function AppProvider({ children }) {
     stack, current: stack[stack.length - 1], navigate, goBack, reset, replace,
     startUserSession, continueAsGuest, logout, clearSession, reload, setLinkNotice, takeLinkNotice,
     updateProfile, saveRow, deleteRow,
-  }), [mode, isGuest, uid, data, stack, navigate, goBack, reset, replace, startUserSession, continueAsGuest, logout, clearSession, reload, setLinkNotice, takeLinkNotice, updateProfile, saveRow, deleteRow]);
+    dataSaver, setDataSaver,
+  }), [mode, isGuest, uid, data, stack, navigate, goBack, reset, replace, startUserSession, continueAsGuest, logout, clearSession, reload, setLinkNotice, takeLinkNotice, updateProfile, saveRow, deleteRow, dataSaver, setDataSaver]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }

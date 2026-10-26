@@ -9,10 +9,11 @@ import { colors } from './src/theme';
 import { Splash, Setup, Landing, Register, Login, Forgot } from './src/screens/auth';
 import { Home, Profile, EditProfile, EducationForm, EducationDetail, Skills, ExperienceForm, Languages, Preferences } from './src/screens/profile';
 import { Assessments, TestQuestion, TestResult } from './src/screens/tests';
-import { Jobs, JobDetail, Course } from './src/screens/jobs';
+import { Jobs, JobDetail, Course, HowScores } from './src/screens/jobs';
 import { Grow, Mentorship, Guide, CoachChat, Locked, InterviewSetup, InterviewSession, InterviewResult } from './src/screens/grow';
 import { CVBuilder } from './src/screens/cv';
 import { CVImport } from './src/screens/cvimport';
+import { SkillBadges } from './src/screens/badges';
 import { More, AccountDetails, Notifications, Privacy, Help } from './src/screens/more';
 
 const SCREENS = {
@@ -20,7 +21,7 @@ const SCREENS = {
   Home, Profile, EditProfile, EducationForm, EducationDetail, Skills, ExperienceForm, Languages, Preferences,
   Assessments, TestQuestion, TestResult,
   Jobs, JobDetail, Course,
-  Grow, Mentorship, Guide, CoachChat, Locked, CVBuilder, CVImport, InterviewSetup, InterviewSession, InterviewResult,
+  Grow, Mentorship, Guide, CoachChat, Locked, CVBuilder, CVImport, SkillBadges, HowScores, InterviewSetup, InterviewSession, InterviewResult,
   More, AccountDetails, Notifications, Privacy, Help,
 };
 
